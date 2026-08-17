@@ -1,0 +1,26 @@
+0XXX SPECIAL
+1rXX LD :: Vr = XX
+2rrX LD
+     2xy0 :: Vx = Vy
+     2xy1 :: Vx = [Vy]
+     2xy2 :: Vx = [V0 + Vy]
+     2xy3 :: Vx = [PC + Vy]
+3rXX ST
+     3x.0 :: [Vx] = 0 (CLR)
+     3xy1 :: [Vx] = Vy
+     3xy2 :: [V0 + Vx] = Vy
+     3xy3 :: [PC + Vx] = Vy
+4XXX JA
+     40XX :: PC = PC + XX
+     4XXX :: PC = XXX
+5rXX JR
+     5r00 :: PC = PC + V0
+     5r01 :: PC = V0
+6rrX ARTH
+     6xy0 :: Vx = Vx + Vy ; VF = 1 if overflow else 0
+     6xy1 :: Vx = Vx - Vy ; VF = 1 if underflow else 0
+     6xy2 :: Vx = Vx * Vy ; VF = 1 if overflow else 0
+     6xy3 :: Vx = Vx / Vy ; VF = Vx % Vy
+     6xy4 :: Vx = Vx >> Vy ; VF = Vx&((1<<Vy)-1)
+     6xy5 :: Vx = Vx << Vy ; Vy = ???
+7rXX ADDA :: Vx = Vx + XX
