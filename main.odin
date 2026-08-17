@@ -3,6 +3,7 @@ package chip9
 import "core:fmt"
 import "core:io"
 import "core:os"
+import "core:slice"
 import "core:strconv"
 import "core:strings"
 
@@ -66,17 +67,49 @@ main :: proc() {
 	{
 		fmt.println()
 		fmt.println("PROGRAM:")
-		col := 0
-		for instr in program {
-			if col != 0 do fmt.print(" ")
-			fmt.printf("%04X", instr)
-			col += 1
-			if col == 8 {
-				fmt.println()
-				col = 0
+
+		fmt.println("      ...0 ...1 ...2 ...3 ...4 ...5 ...6 ...7  ...8 ...9 ...A ...B ...C ...D ...E ...F")
+		prev_skipped := false
+		empty_row: [16]u16
+		last_row := 0
+		for row in 0..<(1<<12) {
+			if (row+1)*16 > len(program) do break
+			last_row = row+1
+
+			if slice.simple_equal(program[row*16:(row+1)*16], empty_row[:]) {
+				if !prev_skipped do fmt.println("      ***************************************  ***************************************")
+				prev_skipped = true
+				continue
 			}
+
+			fmt.printf("%03X. ", row)
+			for col in 0..<16 {
+				if col == 8 do fmt.print(" ")
+				fmt.printf(" %04X", program[row*16 + col])
+			}
+			fmt.println()
 		}
-		if col != 0 do fmt.println()
+		disp_last_row: if last_row*16 < len(program) {
+			row_len := len(program) - last_row*16
+
+			if slice.simple_equal(program[last_row*16:], empty_row[:row_len]) {
+				if !prev_skipped do fmt.println("      ****")
+				prev_skipped = true
+				break disp_last_row
+			}
+
+			fmt.printf("%03X. ", last_row)
+			for col in 0..<row_len {
+				if col == 8 do fmt.print(" ")
+				fmt.printf(" %04X", program[last_row*16 + col])
+			}
+			for col in row_len..<16 {
+				if col == 8 do fmt.print(" ")
+				fmt.print(" 0000")
+			}
+			fmt.println()
+		}
+
 		fmt.println()
 	}
 
