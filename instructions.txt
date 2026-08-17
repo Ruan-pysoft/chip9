@@ -1,6 +1,15 @@
+V0 is the "index register"
+VE is the "stack pointer" register
+VF is the "flag register"
+
+All registers and the PC starts with the value 0
+except for VE, which starts at 0xFFFF
+
+The stack increases downwards
+
 0XXX SPECIAL
-     0000 :: HLT
-     0010 :: RET
+     0.00 :: HLT
+     0.10 :: RET
 
      0rX1 :: graphics chip command X with register r
      0rX2 :: sound chip command X with register r
@@ -33,13 +42,14 @@
 6ryX ARTH // arythmetic is signed
      6ry0 :: Vr = Vr + Vy ; VF = -1 if overflow else 0
      6ry1 :: Vr = Vr - Vy ; VF = -1 if underflow else 0
-     6ry2 :: Vr = Vr * Vy ; VF = -1 if overflow else 0
-     6ry3 :: Vr = Vr / Vy ; VF = Vx % Vy
-     6ry4 :: Vr = Vr >> Vy ; VF = Vr&((1<<Vy)-1)
-     6ry5 :: Vr = Vr << Vy ; VF = ???
-7XXX ADD0 :: V0 = V0 + XXX
+     6ry2 :: Vr = Vy - Vr ; VF = -1 if underflow else 0
+     6ry3 :: Vr = Vr * Vy ; VF = -1 if overflow else 0
+     6ry4 :: Vr = Vr / Vy ; VF = Vx % Vy
+     6ry5 :: Vr = Vr >> Vy ; VF = Vr&((1<<Vy)-1)
+     6ry6 :: Vr = Vr << Vy ; VF = ???
+7XXX ADD0 :: V0 = V0 + XXX (sign-extended) ; VF = -1 if overflow else 0
 8XXX CALL :: call XXX
-9XXX CALL :: call PC + XXX (but signed?)
+9XXX CALL :: call PC + XXX (sign-extended)
 ArXX CALL
      Ar.0 :: call Vr
      Ar.1 :: call [Vr]

@@ -9,7 +9,7 @@ import "core:strings"
 main :: proc() {
 	init_stdin()
 
-	cpu: Cpu
+	cpu := make_cpu()
 
 	n: u8
 	for {
@@ -35,25 +35,32 @@ main :: proc() {
 	}
 
 	program := [?]u16 {
-		// a, b, n, one := 0, 1, 10, 1
-		0  = 0x1000, // V0 = 0
-		1  = 0x1101, // V1 = 1
-		2  = 0x1200 | u16(n), // V2 = %n
-		3  = 0x1301, // V3 = 1
+		0x000 = 0x1000 | u16(n), // V0 = %n
+		0x001 = 0x8100, // CALL $100 (fib)
+		0x002 = 0x0000, // HALT
 
-		// while --n >= 0
-		4  = 0x6231, // V2 = V2 - V3 // V2 -= 1
-		5  = 0xB20D, // SKIP IF V2 >= 0
-		6  = 0x4005, // JMP PC+5
+		// proc fib(V0)
+		// uses: V1, V2, VF
+		0x100 = 0x1100, // V1 = 0
+		0x101 = 0x1201, // V2 = 1
 
-		7  = 0x2400, // V4 = V0
-		8  = 0x2010, // V0 = V1
-		9  = 0x6140, // V1 = V1 + V4
+		// while V0 > 0
+		0x102 = 0xB00C, // SKIP IF V0 > 0
+		0x103 = 0x4005, // JMP PC+5
+
+		// --V0
+		0x104 = 0x7FFF, // V0 = V0 - 1
+
+		// V1, V2 = V2, V1 + V2
+		0x105 = 0x6210, // V2 = V2 + V1
+		0x106 = 0x6122, // V1 = V2 - V1
 
 		// endwhile
-		10 = 0x40FA, // JMP PC-6
+		0x107 = 0x40FB, // JMP PC-5
 
-		11 = 0,
+		// return V1
+		0x108 = 0x2010, // V0 = V1
+		0x109 = 0x0010, // RET
 	}
 
 	{

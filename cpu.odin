@@ -27,6 +27,17 @@ Cpu :: struct {
 	pc:        u16,
 }
 
+init_cpu :: proc(cpu: ^Cpu) {
+	cpu^ = {}
+	cpu.registers[.VE] = 0xFFFF
+}
+
+make_cpu :: proc() -> Cpu {
+	res := Cpu {}
+	init_cpu(&res)
+	return res
+}
+
 load_rom :: proc(cpu: ^Cpu, rom: []u16) -> (ok: bool) {
 	if len(rom) > len(cpu.memory) do return false
 
@@ -50,6 +61,7 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 	XXX :=        (instr&0x0FFF)>>(4*0)
 
 	V0 := &cpu.registers[.V0]
+	VE := &cpu.registers[.VE]
 	VF := &cpu.registers[.VF]
 	Vr := &cpu.registers[r]
 	Vy := &cpu.registers[y]
@@ -67,7 +79,10 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 	case 0x0: switch X {
 		case 0x0: switch XX>>4 {
 			case 0x0: return false // halt
-			case 0x1: panic("TODO: RET")
+			case 0x1:
+				VE^ += 1
+				if VE^ == 0 do return false // halt
+				cpu.pc = cpu.memory[VE^]
 			case: invalid(instr, old_pc)
 		}
 		case 0x1: panic("TODO: graphics chip")
@@ -110,21 +125,29 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 	case 0x6: switch X {
 		case 0x0:
 			res := sVr^ + sVy^
-			if res < sVr^ do sVF^ = -1
+			if sVy^ > 0 && res < sVr^ do sVF^ = -1
+			else if sVy^ < 0 && res > sVr^ do sVF^ = -1
 			else do sVF^ = 0
 			sVr^ = res
 		case 0x1:
 			res := sVr^ - sVy^
-			if res > sVr^ do sVF^ = -1
+			if sVy^ > 0 && res > sVr^ do sVF^ = -1
+			else if sVy^ < 0 && res < sVr^ do sVF^ = -1
 			else do sVF^ = 0
 			sVr^ = res
 		case 0x2:
+			res := sVy^ - sVr^
+			if sVr^ > 0 && res > sVy^ do sVF^ = -1
+			else if sVr^ < 0 && res < sVy^ do sVF^ = -1
+			else do sVF^ = 0
+			sVr^ = res
+		case 0x3:
 			res := sVr^ * sVy^
 			bigRes := i64(sVr^) * i64(sVy^)
 			if i64(res) != bigRes do sVF^ = -1
 			else do sVF^ = 0
 			sVr^ = res
-		case 0x3:
+		case 0x4:
 			// for x and y if q = x/y and r = x%y then:
 			//     x = q*y + r AND
 		        //     |r| < |y|
@@ -133,14 +156,57 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 			r := sVr^ % sVy^
 			sVr^ = q
 			sVF^ = r
-		case 0x4: panic("TODO: shift overflow logic")
 		case 0x5: panic("TODO: shift overflow logic")
+		case 0x6: panic("TODO: shift overflow logic")
 		case: invalid(instr, old_pc)
 	}
-	case 0x7: panic("TODO: large load")
-	case 0x8: panic("TODO: absolute call")
-	case 0x9: panic("TODO: relative call")
-	case 0xA: panic("TODO: indirect call")
+	case 0x7:
+		sign_bit := XXX>>11
+		if sign_bit != 0 {
+			XXX |= 0xF000
+		}
+		res := sV0^ + transmute(i16)XXX
+		if XXX > 0 && res < sV0^ do sVF^ = -1
+		else if XXX < 0 && res > sV0^ do sVF^ = -1
+		else do sV0^ = 0
+		sV0^ = res
+	case 0x8:
+		if VE^ == 0 do return false // halt
+		cpu.memory[VE^] = cpu.pc
+		VE^ -= 1
+		cpu.pc = XXX
+	case 0x9:
+		if VE^ == 0 do return false // halt
+		cpu.memory[VE^] = cpu.pc
+		VE^ -= 1
+		sign_bit := XXX>>11
+		if sign_bit != 0 {
+			XXX |= 0xF000
+		}
+		cpu.pc += XXX
+	case 0xA: switch X {
+		case 0x0:
+			if VE^ == 0 do return false // halt
+			cpu.memory[VE^] = cpu.pc
+			VE^ -= 1
+			cpu.pc = Vr^
+		case 0x1:
+			if VE^ == 0 do return false // halt
+			cpu.memory[VE^] = cpu.pc
+			VE^ -= 1
+			cpu.pc = cpu.memory[Vr^]
+		case 0x2:
+			if VE^ == 0 do return false // halt
+			cpu.memory[VE^] = cpu.pc
+			VE^ -= 1
+			cpu.pc = cpu.memory[V0^ + Vr^]
+		case 0x3:
+			if VE^ == 0 do return false // halt
+			cpu.memory[VE^] = cpu.pc
+			VE^ -= 1
+			cpu.pc = cpu.memory[old_pc + Vr^]
+		case: invalid(instr, old_pc)
+	}
 	case 0xB: switch X {
 		case 0x0: if sVr^ == sVy^ do cpu.pc += 1
 		case 0x1: if sVr^ != sVy^ do cpu.pc += 1
@@ -155,6 +221,8 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 		case 0xB: if sVr^ <= 0 do cpu.pc += 1
 		case 0xC: if sVr^ > 0 do cpu.pc += 1
 		case 0xD: if sVr^ >= 0 do cpu.pc += 1
+
+		case: invalid(instr, old_pc)
 	}
 	case: invalid(instr, old_pc)
 	}
