@@ -33,12 +33,12 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 	old_pc := cpu.pc
 	cpu.pc += 1
 
-	sub_instr :=  (instr&0xF000)>>(8*3)
-	r := Register((instr&0x0F00)>>(8*2))
-	y := Register((instr&0x00F0)>>(8*2))
-	X :=          (instr&0x000F)>>(8*0)
-	XX :=         (instr&0x00FF)>>(8*0)
-	XXX :=        (instr&0x0FFF)>>(8*0)
+	sub_instr :=  (instr&0xF000)>>(4*3)
+	r := Register((instr&0x0F00)>>(4*2))
+	y := Register((instr&0x00F0)>>(4*2))
+	X :=          (instr&0x000F)>>(4*0)
+	XX :=         (instr&0x00FF)>>(4*0)
+	XXX :=        (instr&0x0FFF)>>(4*0)
 
 	V0 := &cpu.registers[.V0]
 	VF := &cpu.registers[.VF]
@@ -56,7 +56,7 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 
 	switch sub_instr {
 	case 0x0: switch X {
-		case 0x0: switch XX>>8 {
+		case 0x0: switch XX>>4 {
 			case 0x0: return false // halt
 			case 0x1: panic("TODO: RET")
 			case: invalid(instr, old_pc)
