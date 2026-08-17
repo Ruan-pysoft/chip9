@@ -1,26 +1,47 @@
 0XXX SPECIAL
+     0000 :: HLT
+     0010 :: RET
+
+     0rX1 :: graphics chip command X with register r
+     0rX2 :: sound chip command X with register r
+     0rX3 :: input chip command X with register r
+     0rX4 :: clock chip command X with register r
 1rXX LD :: Vr = XX
-2rrX LD
-     2xy0 :: Vx = Vy
-     2xy1 :: Vx = [Vy]
-     2xy2 :: Vx = [V0 + Vy]
-     2xy3 :: Vx = [PC + Vy]
+2ryX LD
+     2ry0 :: Vr = Vy
+     2ry1 :: Vr = [Vy]
+     2ry2 :: Vr = [V0 + Vy]
+     2ry3 :: Vr = [PC + Vy]
 3rXX ST
-     3x.0 :: [Vx] = 0 (CLR)
-     3xy1 :: [Vx] = Vy
-     3xy2 :: [V0 + Vx] = Vy
-     3xy3 :: [PC + Vx] = Vy
+     3r.0 :: [Vr] = 0 (CLR)
+     3ry1 :: [Vr] = Vy
+     3ry2 :: [V0 + Vr] = Vy
+     3ry3 :: [PC + Vr] = Vy
 4XXX JA
-     40XX :: PC = PC + XX
-     4XXX :: PC = XXX
+     40XX :: PC = PC + XX (sign-extended)
+     4XXX :: PC = 0XXX
 5rXX JR
-     5r00 :: PC = PC + V0
-     5r01 :: PC = V0
-6rrX ARTH
-     6xy0 :: Vx = Vx + Vy ; VF = 1 if overflow else 0
-     6xy1 :: Vx = Vx - Vy ; VF = 1 if underflow else 0
-     6xy2 :: Vx = Vx * Vy ; VF = 1 if overflow else 0
-     6xy3 :: Vx = Vx / Vy ; VF = Vx % Vy
-     6xy4 :: Vx = Vx >> Vy ; VF = Vx&((1<<Vy)-1)
-     6xy5 :: Vx = Vx << Vy ; Vy = ???
-7rXX ADDA :: Vx = Vx + XX
+     5r00 :: PC = Vr
+     5r01 :: PC = [Vr]
+     5r02 :: PC = [V0 + Vr]
+     5r03 :: PC = [PC + Vr]
+
+     5r10 :: PC = Vr
+     5r11 :: PC = Vr
+     5r12 :: PC = V0 + Vr
+     5r13 :: PC = PC + Vr
+6ryX ARTH // arythmetic is signed
+     6ry0 :: Vr = Vr + Vy ; VF = -1 if overflow else 0
+     6ry1 :: Vr = Vr - Vy ; VF = -1 if underflow else 0
+     6ry2 :: Vr = Vr * Vy ; VF = -1 if overflow else 0
+     6ry3 :: Vr = Vr / Vy ; VF = Vx % Vy
+     6ry4 :: Vr = Vr >> Vy ; VF = Vr&((1<<Vy)-1)
+     6ry5 :: Vr = Vr << Vy ; VF = ???
+7XXX ADD0 :: V0 = V0 + XXX
+8XXX CALL :: call XXX
+9XXX CALL :: call PC + XXX (but signed?)
+ArXX CALL
+     Br.0 :: call Vr
+     Br.1 :: call [Vr]
+     Br.2 :: call [V0 + Vr]
+     Br.3 :: call [PC + Vr]
