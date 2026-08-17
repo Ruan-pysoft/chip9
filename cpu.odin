@@ -27,6 +27,15 @@ Cpu :: struct {
 	pc:        u16,
 }
 
+load_rom :: proc(cpu: ^Cpu, rom: []u16) -> (ok: bool) {
+	if len(rom) > len(cpu.memory) do return false
+
+	cpu.memory = {}
+	copy_slice(cpu.memory[:], rom)
+
+	return true
+}
+
 // HALT with ok = false
 cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 	instr := cpu.memory[cpu.pc]
@@ -35,7 +44,7 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 
 	sub_instr :=  (instr&0xF000)>>(4*3)
 	r := Register((instr&0x0F00)>>(4*2))
-	y := Register((instr&0x00F0)>>(4*2))
+	y := Register((instr&0x00F0)>>(4*1))
 	X :=          (instr&0x000F)>>(4*0)
 	XX :=         (instr&0x00FF)>>(4*0)
 	XXX :=        (instr&0x0FFF)>>(4*0)
@@ -84,7 +93,7 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 	}
 	case 0x4: if XXX&0xF00 == 0 {
 		signed_offset := i16(transmute(i8) u8(XX))
-		cpu.pc = transmute(u16)(transmute(i16)cpu.pc + signed_offset)
+		cpu.pc = transmute(u16)(transmute(i16)old_pc + signed_offset)
 	} else {
 		cpu.pc = XXX
 	}
@@ -106,7 +115,7 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 			sVr^ = res
 		case 0x1:
 			res := sVr^ - sVy^
-			if transmute(i16)res > transmute(i16)sVr^ do sVF^ = -1
+			if res > sVr^ do sVF^ = -1
 			else do sVF^ = 0
 			sVr^ = res
 		case 0x2:
@@ -127,6 +136,25 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 		case 0x4: panic("TODO: shift overflow logic")
 		case 0x5: panic("TODO: shift overflow logic")
 		case: invalid(instr, old_pc)
+	}
+	case 0x7: panic("TODO: large load")
+	case 0x8: panic("TODO: absolute call")
+	case 0x9: panic("TODO: relative call")
+	case 0xA: panic("TODO: indirect call")
+	case 0xB: switch X {
+		case 0x0: if sVr^ == sVy^ do cpu.pc += 1
+		case 0x1: if sVr^ != sVy^ do cpu.pc += 1
+		case 0x2: if sVr^ < sVy^ do cpu.pc += 1
+		case 0x3: if sVr^ <= sVy^ do cpu.pc += 1
+		case 0x4: if sVr^ > sVy^ do cpu.pc += 1
+		case 0x5: if sVr^ >= sVy^ do cpu.pc += 1
+
+		case 0x8: if sVr^ == 0 do cpu.pc += 1
+		case 0x9: if sVr^ != 0 do cpu.pc += 1
+		case 0xA: if sVr^ < 0 do cpu.pc += 1
+		case 0xB: if sVr^ <= 0 do cpu.pc += 1
+		case 0xC: if sVr^ > 0 do cpu.pc += 1
+		case 0xD: if sVr^ >= 0 do cpu.pc += 1
 	}
 	case: invalid(instr, old_pc)
 	}

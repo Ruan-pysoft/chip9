@@ -41,7 +41,21 @@
 8XXX CALL :: call XXX
 9XXX CALL :: call PC + XXX (but signed?)
 ArXX CALL
-     Br.0 :: call Vr
-     Br.1 :: call [Vr]
-     Br.2 :: call [V0 + Vr]
-     Br.3 :: call [PC + Vr]
+     Ar.0 :: call Vr
+     Ar.1 :: call [Vr]
+     Ar.2 :: call [V0 + Vr]
+     Ar.3 :: call [PC + Vr]
+BryX SCMP
+     Bry0 :: SE  // skip next instruction if Vr == Vy
+     Bry1 :: SNE // skip next instruction if Vr != Vy
+     Bry2 :: SLT // skip next instruction if Vr < Vy
+     Bry3 :: SLE // skip next instruction if Vr <= Vy
+     Bry4 :: SGT // skip next instruction if Vr > Vy
+     Bry5 :: SGE // skip next instruction if Vr >= Vy
+
+     Br.8 :: SZ  // skip next instruction if Vr == 0
+     Br.9 :: SNZ // skip next instruction if Vr != 0
+     Br.A :: SNG // skip next instruction if Vr < 0
+     Br.B :: S0N // skip next instruction if Vr <= 0
+     Br.C :: SPS // skip next instruction if Vr > 0
+     Br.D :: S0P // skip next instruction if Vr >= 0
