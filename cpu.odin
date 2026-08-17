@@ -144,72 +144,72 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 	}
 	case 0x5: switch XX {
 		case 0x00:
-			fmt.eprintfln("<INSTR JMP {} ($%04X)>", r, Vr^)
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR JMP {} ($%04X)>", r, Vr^)
 			cpu.pc = Vr^
 		case 0x01:
-			fmt.eprintfln("<INSTR JMP [{}] ([$%04X]=$%04X)>", r, Vr^, cpu.memory[Vr^])
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR JMP [{}] ([$%04X]=$%04X)>", r, Vr^, cpu.memory[Vr^])
 			cpu.pc = cpu.memory[Vr^]
 		case 0x02:
-			fmt.eprintfln("<INSTR JMP [.V0 + {}] ([$%04X + $%04X]=$%04X)>", r, V0^, Vr^, cpu.memory[V0^ + Vr^])
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR JMP [.V0 + {}] ([$%04X + $%04X]=$%04X)>", r, V0^, Vr^, cpu.memory[V0^ + Vr^])
 			cpu.pc = cpu.memory[V0^ + Vr^]
 		case 0x03:
-			fmt.eprintfln("<INSTR JMP [PC + {}] ([$%04X + $%04X]=$%04X)>", r, old_pc, Vr^, cpu.memory[old_pc + Vr^])
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR JMP [PC + {}] ([$%04X + $%04X]=$%04X)>", r, old_pc, Vr^, cpu.memory[old_pc + Vr^])
 			cpu.pc = cpu.memory[old_pc + Vr^]
 
 		case 0x10, 0x11:
-			fmt.eprintfln("<INSTR JMP {} ($%04X)>", r, Vr^)
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR JMP {} ($%04X)>", r, Vr^)
 			cpu.pc = Vr^
 		case 0x12:
-			fmt.eprintfln("<INSTR JMP .V0 + {} ($%04X + $%04X)>", r, V0^, Vr^)
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR JMP .V0 + {} ($%04X + $%04X)>", r, V0^, Vr^)
 			cpu.pc = V0^ + Vr^
 		case 0x13:
-			fmt.eprintfln("<INSTR JMP PC + {} ($%04X + $%04X)>", r, old_pc, Vr^)
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR JMP PC + {} ($%04X + $%04X)>", r, old_pc, Vr^)
 			cpu.pc = old_pc + Vr^
 	}
 	case 0x6: switch X {
 		case 0x0:
-			fmt.eprintfln("<INSTR {} = {} + {} ($%04X + $%04X)>", r, r, y, Vr^, Vy^)
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = {} + {} ($%04X + $%04X)>", r, r, y, Vr^, Vy^)
 			res := sVr^ + sVy^
 			if sVy^ > 0 && res < sVr^ do sVF^ = -1
 			else if sVy^ < 0 && res > sVr^ do sVF^ = -1
 			else do sVF^ = 0
-			fmt.eprintfln("<FLAGS: {}>", sVF^)
+			when ODIN_DEBUG do fmt.eprintfln("<FLAGS: {}>", sVF^)
 			sVr^ = res
 		case 0x1:
-			fmt.eprintfln("<INSTR {} = {} - {} ($%04X - $%04X)>", r, r, y, Vr^, Vy^)
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = {} - {} ($%04X - $%04X)>", r, r, y, Vr^, Vy^)
 			res := sVr^ - sVy^
 			if sVy^ > 0 && res > sVr^ do sVF^ = -1
 			else if sVy^ < 0 && res < sVr^ do sVF^ = -1
 			else do sVF^ = 0
-			fmt.eprintfln("<FLAGS: {}>", sVF^)
+			when ODIN_DEBUG do fmt.eprintfln("<FLAGS: {}>", sVF^)
 			sVr^ = res
 		case 0x2:
-			fmt.eprintfln("<INSTR {} = {} - {} ($%04X - $%04X)>", r, y, r, Vy^, Vr^)
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = {} - {} ($%04X - $%04X)>", r, y, r, Vy^, Vr^)
 			res := sVy^ - sVr^
 			if sVr^ > 0 && res > sVy^ do sVF^ = -1
 			else if sVr^ < 0 && res < sVy^ do sVF^ = -1
 			else do sVF^ = 0
-			fmt.eprintfln("<FLAGS: {}>", sVF^)
+			when ODIN_DEBUG do fmt.eprintfln("<FLAGS: {}>", sVF^)
 			sVr^ = res
 		case 0x3:
-			fmt.eprintfln("<INSTR {} = {} * {} ($%04X * $%04X)>", r, r, y, Vr^, Vy^)
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = {} * {} ($%04X * $%04X)>", r, r, y, Vr^, Vy^)
 			res := sVr^ * sVy^
 			bigRes := i64(sVr^) * i64(sVy^)
 			if i64(res) != bigRes do sVF^ = -1
 			else do sVF^ = 0
-			fmt.eprintfln("<FLAGS: {}>", sVF^)
+			when ODIN_DEBUG do fmt.eprintfln("<FLAGS: {}>", sVF^)
 			sVr^ = res
 		case 0x4:
 			// for x and y if q = x/y and r = x%y then:
 			//     x = q*y + r AND
 		        //     |r| < |y|
-			fmt.eprintfln("<INSTR {} = {} / {} ($%04X / $%04X)>", r, r, y, Vr^, Vy^)
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = {} / {} ($%04X / $%04X)>", r, r, y, Vr^, Vy^)
 			if sVy^ == 0 do return false
 			q := sVr^ / sVy^
 			r := sVr^ % sVy^
 			sVr^ = q
 			sVF^ = r
-			fmt.eprintfln("<FLAGS: {}>", sVF^)
+			when ODIN_DEBUG do fmt.eprintfln("<FLAGS: {}>", sVF^)
 		case 0x5: panic("TODO: shift overflow logic")
 		case 0x6: panic("TODO: shift overflow logic")
 		case: invalid(instr, old_pc)
