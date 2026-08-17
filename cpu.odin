@@ -78,11 +78,18 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 	switch sub_instr {
 	case 0x0: switch X {
 		case 0x0: switch XX>>4 {
-			case 0x0: return false // halt
+			case 0x0:
+				when ODIN_DEBUG do fmt.eprintfln("<INSTR HALT>")
+				return false // halt
 			case 0x1:
+				when ODIN_DEBUG do fmt.eprintf("<INSTR RET:")
 				VE^ += 1
-				if VE^ == 0 do return false // halt
+				if VE^ == 0 {
+					when ODIN_DEBUG do fmt.eprintfln("call stack underflowed!>")
+					return false // halt
+				}
 				cpu.pc = cpu.memory[VE^]
+				when ODIN_DEBUG do fmt.eprintfln("$%04X>", cpu.pc)
 			case: invalid(instr, old_pc)
 		}
 		case 0x1: panic("TODO: graphics chip")
@@ -91,71 +98,118 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 		case 0x4: panic("TODO: clock chip")
 		case: invalid(instr, old_pc)
 	}
-	case 0x1: Vr^ = XX
+	case 0x1:
+		when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = $%02X>", r, XX)
+		Vr^ = XX
 	case 0x2: switch X {
-		case 0x0: Vr^ = Vy^
-		case 0x1: Vr^ = cpu.memory[Vy^]
-		case 0x2: Vr^ = cpu.memory[V0^ + Vy^]
-		case 0x3: Vr^ = cpu.memory[old_pc + Vy^]
+		case 0x0:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = {} ($%04X)>", r, y, Vy^)
+			Vr^ = Vy^
+		case 0x1:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = [{}] ([$%04X]=$%04X)>", r, y, Vy^, cpu.memory[Vy^])
+			Vr^ = cpu.memory[Vy^]
+		case 0x2:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = [.V0 + {}] ([$%04X + $%04X]=$%04X)>", r, y, V0^, Vy^, cpu.memory[Vy^])
+			Vr^ = cpu.memory[V0^ + Vy^]
+		case 0x3:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = [PC + {}] ([$%04X + $%04X]=$%04X)>", r, y, old_pc, Vy^, cpu.memory[Vy^])
+			Vr^ = cpu.memory[old_pc + Vy^]
 		case: invalid(instr, old_pc)
 	}
 	case 0x3: switch X {
-		case 0x0: cpu.memory[Vr^] = 0
-		case 0x1: cpu.memory[Vr^] = Vy^
-		case 0x2: cpu.memory[V0^ + Vr^] = Vy^
-		case 0x3: cpu.memory[old_pc + Vr^] = Vy^
+		case 0x0:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR [{}] ([$%04X]) = 0>", r, Vr^, 0)
+			cpu.memory[Vr^] = 0
+		case 0x1:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR [{}] ([$%04X]) = {} ($%04X)>", r, Vr^, y, Vy^)
+			cpu.memory[Vr^] = Vy^
+		case 0x2:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR [.V0 + {}] ([$%04X + $%04X]) = {} ($%04X)>", r, V0^, Vr^, y, Vy^)
+			cpu.memory[V0^ + Vr^] = Vy^
+		case 0x3:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR [PC + {}] ([$%04X + $%04X]) = {} ($%04X)>", r, old_pc, Vr^, y, Vy^)
+			cpu.memory[old_pc + Vr^] = Vy^
 		case: invalid(instr, old_pc)
 	}
 	case 0x4: if XXX&0xF00 == 0 {
 		signed_offset := i16(transmute(i8) u8(XX))
 		cpu.pc = transmute(u16)(transmute(i16)old_pc + signed_offset)
+		when ODIN_DEBUG {
+			if signed_offset >= 0 do fmt.eprintfln("<INSTR JMP PC + $%02X ($%04X)>", XX, cpu.pc)
+			else do fmt.eprintfln("<INSTR JMP PC - $%02X ($%04X)>", 1+~XX, cpu.pc) // negate XX; theoretically -XX would work as well but can't be bothered to test if it does
+		}
 	} else {
+		when ODIN_DEBUG do fmt.eprintfln("<INSTR JMP $%03X>", XXX)
 		cpu.pc = XXX
 	}
 	case 0x5: switch XX {
-		case 0x00: cpu.pc = Vr^
-		case 0x01: cpu.pc = cpu.memory[Vr^]
-		case 0x02: cpu.pc = cpu.memory[V0^ + Vr^]
-		case 0x03: cpu.pc = cpu.memory[old_pc + Vr^]
+		case 0x00:
+			fmt.eprintfln("<INSTR JMP {} ($%04X)>", r, Vr^)
+			cpu.pc = Vr^
+		case 0x01:
+			fmt.eprintfln("<INSTR JMP [{}] ([$%04X]=$%04X)>", r, Vr^, cpu.memory[Vr^])
+			cpu.pc = cpu.memory[Vr^]
+		case 0x02:
+			fmt.eprintfln("<INSTR JMP [.V0 + {}] ([$%04X + $%04X]=$%04X)>", r, V0^, Vr^, cpu.memory[V0^ + Vr^])
+			cpu.pc = cpu.memory[V0^ + Vr^]
+		case 0x03:
+			fmt.eprintfln("<INSTR JMP [PC + {}] ([$%04X + $%04X]=$%04X)>", r, old_pc, Vr^, cpu.memory[old_pc + Vr^])
+			cpu.pc = cpu.memory[old_pc + Vr^]
 
-		case 0x10, 0x11: cpu.pc = Vr^
-		case 0x12: cpu.pc = V0^ + Vr^
-		case 0x13: cpu.pc = old_pc + Vr^
+		case 0x10, 0x11:
+			fmt.eprintfln("<INSTR JMP {} ($%04X)>", r, Vr^)
+			cpu.pc = Vr^
+		case 0x12:
+			fmt.eprintfln("<INSTR JMP .V0 + {} ($%04X + $%04X)>", r, V0^, Vr^)
+			cpu.pc = V0^ + Vr^
+		case 0x13:
+			fmt.eprintfln("<INSTR JMP PC + {} ($%04X + $%04X)>", r, old_pc, Vr^)
+			cpu.pc = old_pc + Vr^
 	}
 	case 0x6: switch X {
 		case 0x0:
+			fmt.eprintfln("<INSTR {} = {} + {} ($%04X + $%04X)>", r, r, y, Vr^, Vy^)
 			res := sVr^ + sVy^
 			if sVy^ > 0 && res < sVr^ do sVF^ = -1
 			else if sVy^ < 0 && res > sVr^ do sVF^ = -1
 			else do sVF^ = 0
+			fmt.eprintfln("<FLAGS: {}>", sVF^)
 			sVr^ = res
 		case 0x1:
+			fmt.eprintfln("<INSTR {} = {} - {} ($%04X - $%04X)>", r, r, y, Vr^, Vy^)
 			res := sVr^ - sVy^
 			if sVy^ > 0 && res > sVr^ do sVF^ = -1
 			else if sVy^ < 0 && res < sVr^ do sVF^ = -1
 			else do sVF^ = 0
+			fmt.eprintfln("<FLAGS: {}>", sVF^)
 			sVr^ = res
 		case 0x2:
+			fmt.eprintfln("<INSTR {} = {} - {} ($%04X - $%04X)>", r, y, r, Vy^, Vr^)
 			res := sVy^ - sVr^
 			if sVr^ > 0 && res > sVy^ do sVF^ = -1
 			else if sVr^ < 0 && res < sVy^ do sVF^ = -1
 			else do sVF^ = 0
+			fmt.eprintfln("<FLAGS: {}>", sVF^)
 			sVr^ = res
 		case 0x3:
+			fmt.eprintfln("<INSTR {} = {} * {} ($%04X * $%04X)>", r, r, y, Vr^, Vy^)
 			res := sVr^ * sVy^
 			bigRes := i64(sVr^) * i64(sVy^)
 			if i64(res) != bigRes do sVF^ = -1
 			else do sVF^ = 0
+			fmt.eprintfln("<FLAGS: {}>", sVF^)
 			sVr^ = res
 		case 0x4:
 			// for x and y if q = x/y and r = x%y then:
 			//     x = q*y + r AND
 		        //     |r| < |y|
+			fmt.eprintfln("<INSTR {} = {} / {} ($%04X / $%04X)>", r, r, y, Vr^, Vy^)
 			if sVy^ == 0 do return false
 			q := sVr^ / sVy^
 			r := sVr^ % sVy^
 			sVr^ = q
 			sVF^ = r
+			fmt.eprintfln("<FLAGS: {}>", sVF^)
 		case 0x5: panic("TODO: shift overflow logic")
 		case 0x6: panic("TODO: shift overflow logic")
 		case: invalid(instr, old_pc)
@@ -165,62 +219,123 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 		if sign_bit != 0 {
 			XXX |= 0xF000
 		}
+		when ODIN_DEBUG {
+			if sign_bit == 0 do fmt.eprintfln("<INSTR .V0 = .V0 ($%04X) + $%03X>", V0^, XXX)
+			else do fmt.eprintfln("<INSTR .V0 = .V0 ($%04X) - $%03X>", V0^, 1+~XXX) // negate XXX; theoretically -XXX would work as well but can't be bothered to test if it does
+		}
 		res := sV0^ + transmute(i16)XXX
 		if XXX > 0 && res < sV0^ do sVF^ = -1
 		else if XXX < 0 && res > sV0^ do sVF^ = -1
 		else do sV0^ = 0
 		sV0^ = res
 	case 0x8:
-		if VE^ == 0 do return false // halt
+		when ODIN_DEBUG do fmt.eprintf("<INSTR CALL $%03X", XXX)
+		if VE^ == 0 {
+			when ODIN_DEBUG do fmt.eprintln(";call stack overflowed!>")
+			return false // halt
+		}
+		when ODIN_DEBUG do fmt.eprintln(">")
 		cpu.memory[VE^] = cpu.pc
 		VE^ -= 1
 		cpu.pc = XXX
 	case 0x9:
-		if VE^ == 0 do return false // halt
-		cpu.memory[VE^] = cpu.pc
-		VE^ -= 1
 		sign_bit := XXX>>11
 		if sign_bit != 0 {
 			XXX |= 0xF000
 		}
+		when ODIN_DEBUG {
+			if sign_bit == 0 do fmt.eprintln("<INSTR CALL PC + $%03X", XXX)
+			else do fmt.eprintfln("<INSTR CALL PC - $%03X", 1+~XXX) // negate XXX; theoretically -XXX would work as well but can't be bothered to test if it does
+		}
+		if VE^ == 0 {
+			when ODIN_DEBUG do fmt.eprintln(";call stack overflowed!>")
+			return false // halt
+		}
+		when ODIN_DEBUG do fmt.eprintln(">")
+		cpu.memory[VE^] = cpu.pc
+		VE^ -= 1
 		cpu.pc += XXX
 	case 0xA: switch X {
 		case 0x0:
-			if VE^ == 0 do return false // halt
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR CALL {} ($%04X)", r, Vr^)
+			if VE^ == 0 {
+				when ODIN_DEBUG do fmt.eprintln(";call stack overflowed!")
+				return false // halt
+			}
+			when ODIN_DEBUG do fmt.eprintln(">")
 			cpu.memory[VE^] = cpu.pc
 			VE^ -= 1
 			cpu.pc = Vr^
 		case 0x1:
-			if VE^ == 0 do return false // halt
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR CALL [{}] ([$%04X]=$%04X)", r, Vr^, cpu.memory[Vr^])
+			if VE^ == 0 {
+				when ODIN_DEBUG do fmt.eprintln(";call stack overflowed!")
+				return false // halt
+			}
+			when ODIN_DEBUG do fmt.eprintln(">")
 			cpu.memory[VE^] = cpu.pc
 			VE^ -= 1
 			cpu.pc = cpu.memory[Vr^]
 		case 0x2:
-			if VE^ == 0 do return false // halt
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR CALL [.V0 + {}] ([$%04X + $%04X]=$%04X)", r, V0^, Vr^, cpu.memory[V0^ + Vr^])
+			if VE^ == 0 {
+				when ODIN_DEBUG do fmt.eprintln(";call stack overflowed!")
+				return false // halt
+			}
+			when ODIN_DEBUG do fmt.eprintln(">")
 			cpu.memory[VE^] = cpu.pc
 			VE^ -= 1
 			cpu.pc = cpu.memory[V0^ + Vr^]
 		case 0x3:
-			if VE^ == 0 do return false // halt
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR CALL [PC + {}] ([$%04X + $%04X]=$%04X)", r, old_pc, Vr^, cpu.memory[old_pc + Vr^])
+			if VE^ == 0 {
+				when ODIN_DEBUG do fmt.eprintln(";call stack overflowed!")
+				return false // halt
+			}
+			when ODIN_DEBUG do fmt.eprintln(">")
 			cpu.memory[VE^] = cpu.pc
 			VE^ -= 1
 			cpu.pc = cpu.memory[old_pc + Vr^]
 		case: invalid(instr, old_pc)
 	}
 	case 0xB: switch X {
-		case 0x0: if sVr^ == sVy^ do cpu.pc += 1
-		case 0x1: if sVr^ != sVy^ do cpu.pc += 1
-		case 0x2: if sVr^ < sVy^ do cpu.pc += 1
-		case 0x3: if sVr^ <= sVy^ do cpu.pc += 1
-		case 0x4: if sVr^ > sVy^ do cpu.pc += 1
-		case 0x5: if sVr^ >= sVy^ do cpu.pc += 1
+		case 0x0:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} == {} ($%04X == $%04X)>", r, y, Vr^, Vy^)
+			if sVr^ == sVy^ do cpu.pc += 1
+		case 0x1:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} != {} ($%04X != $%04X)>", r, y, Vr^, Vy^)
+			if sVr^ != sVy^ do cpu.pc += 1
+		case 0x2:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} < {} ($%04X < $%04X)>", r, y, Vr^, Vy^)
+			if sVr^ < sVy^ do cpu.pc += 1
+		case 0x3:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} <= {} ($%04X <= $%04X)>", r, y, Vr^, Vy^)
+			if sVr^ <= sVy^ do cpu.pc += 1
+		case 0x4:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} > {} ($%04X > $%04X)>", r, y, Vr^, Vy^)
+			if sVr^ > sVy^ do cpu.pc += 1
+		case 0x5:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} >= {} ($%04X >= $%04X)>", r, y, Vr^, Vy^)
+			if sVr^ >= sVy^ do cpu.pc += 1
 
-		case 0x8: if sVr^ == 0 do cpu.pc += 1
-		case 0x9: if sVr^ != 0 do cpu.pc += 1
-		case 0xA: if sVr^ < 0 do cpu.pc += 1
-		case 0xB: if sVr^ <= 0 do cpu.pc += 1
-		case 0xC: if sVr^ > 0 do cpu.pc += 1
-		case 0xD: if sVr^ >= 0 do cpu.pc += 1
+		case 0x8:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} == 0 ($%04X == 0)>", r, Vr^)
+			if sVr^ == 0 do cpu.pc += 1
+		case 0x9:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} != 0 ($%04X != 0)>", r, Vr^)
+			if sVr^ != 0 do cpu.pc += 1
+		case 0xA:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} < 0 ($%04X < 0)>", r, Vr^)
+			if sVr^ < 0 do cpu.pc += 1
+		case 0xB:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} <= 0 ($%04X <= 0)>", r, Vr^)
+			if sVr^ <= 0 do cpu.pc += 1
+		case 0xC:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} > 0 ($%04X > 0)>", r, Vr^)
+			if sVr^ > 0 do cpu.pc += 1
+		case 0xD:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR SKIP IF {} >= 0 ($%04X >= 0)>", r, Vr^)
+			if sVr^ >= 0 do cpu.pc += 1
 
 		case: invalid(instr, old_pc)
 	}
