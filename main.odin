@@ -4,11 +4,14 @@ import "core:fmt"
 import "core:slice"
 import "core:strconv"
 
+import "vendor:sdl3"
+
 main :: proc() {
 	init_stdin()
 
 	chip9: Chip9
 	init_chip9(&chip9)
+	defer destroy_graphics(&chip9.graphics)
 
 	n: u8
 	for {
@@ -67,6 +70,17 @@ main :: proc() {
 		// return V1
 		0x10E = 0x2010, // V0 = V1
 		0x10F = 0x0010, // RET
+
+
+		0x8000 = 0xFFFF,
+		0x8001 = 0xF000,
+		0x8002 = 0x0F00,
+		0x8003 = 0x00F0,
+		0x8004 = 0x000F,
+		0x8005 = 0xAAAA,
+		0x8006 = 0xF800,
+		0x8007 = 0x07C0,
+		0x8008 = 0x003F,
 	}
 
 	{
@@ -127,10 +141,16 @@ main :: proc() {
 	fmt.printfln("pc=%04X [pc]=%04X", chip9.cpu.pc, chip9.cpu.memory[chip9.cpu.pc])
 	for executed in clock_tick(&chip9.clock, &chip9) {
 		if !executed do continue
+
 		fmt.printfln("  i=%03d V0=%04X", i, chip9.cpu.registers[.V0])
 		when ODIN_DEBUG do fmt.printfln("  Registers: {}", transmute([16]u16) chip9.cpu.registers)
 		i += 1
 		fmt.printfln("pc=%04X [pc]=%04X", chip9.cpu.pc, chip9.cpu.memory[chip9.cpu.pc])
+
+		event: sdl3.Event
+		for sdl3.PollEvent(&event) {
+			fmt.eprintln(event)
+		}
 	}
 
 	fmt.println("CPU HALTED")

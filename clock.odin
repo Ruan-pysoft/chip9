@@ -67,7 +67,9 @@ clock_tick :: proc(clock: ^Clock, chip9: ^Chip9) -> (executed_instr: bool, not_h
 		}
 	} else {
 		if clock.suspend_cycles != 0 do clock.suspend_cycles -= 1
-		// TODO: graphics
+		if clock.cycle == COMPUTE_CYCLES {
+			graphics_draw(&chip9.graphics, chip9)
+		}
 	}
 
 	clock.cycle += 1

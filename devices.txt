@@ -2,7 +2,7 @@ The chip9 has a few devices which the CPU can send instructions to via the 0XXX 
 The device gets read/write access to the 16-bit register specified by the second nibble of the instruction,
 and a command nibble specified by the third nibble of the instruction to select which action to take.
 
-Graphics chip: TODO
+Graphics chip:
   Preliminary screen resolution: 768x512
 
 Sound chip: TODO
