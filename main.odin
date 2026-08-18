@@ -125,7 +125,8 @@ main :: proc() {
 
 	i := 0
 	fmt.printfln("pc=%04X [pc]=%04X", chip9.cpu.pc, chip9.cpu.memory[chip9.cpu.pc])
-	for clock_tick(&chip9.clock, &chip9) {
+	for executed in clock_tick(&chip9.clock, &chip9) {
+		if !executed do continue
 		fmt.printfln("  i=%03d V0=%04X", i, chip9.cpu.registers[.V0])
 		when ODIN_DEBUG do fmt.printfln("  Registers: {}", transmute([16]u16) chip9.cpu.registers)
 		i += 1

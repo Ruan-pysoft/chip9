@@ -55,91 +55,34 @@ clock_as_device :: proc(clock: ^Clock) -> Device {
 		data = clock,
 	}
 }
-clock_tick :: proc(clock: ^Clock, chip9: ^Chip9) -> (not_halted: bool) {
-	assert(clock.cycle < CYCLES_PER_FRAME)
-	assert(clock.suspend_cycles == 0)
-	assert(!clock.end_frame)
-
-	frame_ended := false
-
+clock_tick :: proc(clock: ^Clock, chip9: ^Chip9) -> (executed_instr: bool, not_halted: bool) {
 	cpu_should_run := clock.cycle < COMPUTE_CYCLES
 
-	if cpu_should_run {
-		cycle(&chip9.cpu) or_return
+	suspended := clock.suspend_cycles != 0 || clock.end_frame
+	if clock.suspend_cycles != 0 do clock.suspend_cycles -= 1
+	if clock.cycle < COMPUTE_CYCLES {
+		if !suspended {
+			executed_instr = true
+			cycle(&chip9.cpu) or_return
+		}
 	} else {
+		if clock.suspend_cycles != 0 do clock.suspend_cycles -= 1
 		// TODO: graphics
-		clock.end_frame = true
 	}
 
 	clock.cycle += 1
 	if clock.timer > 0 do clock.timer -= 1
-	cycles_till_end := CYCLES_PER_FRAME - clock.cycle
-
-	assert(!clock.end_frame || clock.suspend_cycles == 0)
-
-	if clock.end_frame {
+	if clock.cycle == CYCLES_PER_FRAME {
 		clock.end_frame = false
-		frame_ended = true
-
 		clock.cycle = 0
 		clock.frame += 1
-		if clock.timer <= cycles_till_end do clock.timer = 0
-		else do clock.timer -= cycles_till_end
-	} else if clock.suspend_cycles != 0 && clock.suspend_cycles >= cycles_till_end {
-		clock.suspend_cycles -= cycles_till_end
-		frame_ended = true
-
-		clock.cycle = 0
-		clock.frame += 1
-		if clock.timer <= cycles_till_end do clock.timer = 0
-		else do clock.timer -= cycles_till_end
-	} else if cycles_till_end == 0 {
-		frame_ended = true
-
-		clock.cycle = 0
-		clock.frame += 1
-	}
-
-	sleep_time: time.Duration
-
-	if frame_ended {
 		if clock.frame == FRAMES_PER_SECOND {
-			clock.frame = 0
 			clock.second += 1
 			if clock.second == 0 do clock.epoch += 1
 		}
 
-		sleep_time += FRAME_DURATION
-
-		for clock.suspend_cycles >= CYCLES_PER_FRAME {
-			clock.suspend_cycles -= CYCLES_PER_FRAME
-			if clock.timer <= CYCLES_PER_FRAME do clock.timer = 0
-			else do clock.timer = 0
-
-			clock.frame += 1
-			if clock.frame == FRAMES_PER_SECOND {
-				clock.frame = 0
-				clock.second += 1
-				if clock.second == 0 do clock.epoch += 1
-			}
-
-			sleep_time += FRAME_DURATION
-		}
-
-		if cpu_should_run {
-			// TODO: graphics
-		}
+		time.sleep(FRAME_DURATION)
 	}
 
-	if clock.suspend_cycles != 0 {
-		clock.cycle += clock.suspend_cycles
-		assert(clock.cycle < CYCLES_PER_FRAME)
-
-		if clock.timer <= CYCLES_PER_FRAME do clock.timer = 0
-		else do clock.timer = 0
-	}
-
-	time.sleep(sleep_time)
-
-	return true
+	return executed_instr, true
 }
