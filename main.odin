@@ -1,16 +1,13 @@
 package chip9
 
 import "core:fmt"
-import "core:io"
-import "core:os"
 import "core:slice"
 import "core:strconv"
-import "core:strings"
 
 main :: proc() {
 	init_stdin()
 
-	cpu := make_cpu()
+	chip9 := make_chip9()
 
 	n: u8
 	for {
@@ -113,45 +110,26 @@ main :: proc() {
 		fmt.println()
 	}
 
-	load_rom(&cpu, program[:])
+	load_rom(&chip9, program[:])
 
 	fmt.println("ROM LOADED")
-	fmt.printfln("  V0=%04X", cpu.registers[.V0])
+	fmt.printfln("  V0=%04X", chip9.cpu.registers[.V0])
 
 	i := 0
-	fmt.printfln("pc=%04X [pc]=%04X", cpu.pc, cpu.memory[cpu.pc])
-	for cycle(&cpu) {
-		fmt.printfln("  i=%03d V0=%04X", i, cpu.registers[.V0])
-		when ODIN_DEBUG do fmt.printfln("  Registers: {}", transmute([16]u16) cpu.registers)
+	fmt.printfln("pc=%04X [pc]=%04X", chip9.cpu.pc, chip9.cpu.memory[chip9.cpu.pc])
+	for clock_tick(&chip9.clock, &chip9) {
+		fmt.printfln("  i=%03d V0=%04X", i, chip9.cpu.registers[.V0])
+		when ODIN_DEBUG do fmt.printfln("  Registers: {}", transmute([16]u16) chip9.cpu.registers)
 		i += 1
-		fmt.printfln("pc=%04X [pc]=%04X", cpu.pc, cpu.memory[cpu.pc])
+		fmt.printfln("pc=%04X [pc]=%04X", chip9.cpu.pc, chip9.cpu.memory[chip9.cpu.pc])
 
 		if i == 100 do break
 	}
 
 	fmt.println("CPU HALTED")
 
-	fmt.printfln("  i=%03d V0=%04X=%d", i, cpu.registers[.V0], cpu.registers[.V0])
+	fmt.printfln("  i=%03d V0=%04X=%d", i, chip9.cpu.registers[.V0], chip9.cpu.registers[.V0])
 
 	fmt.println()
-	fmt.printfln("The %dth fibonacci number was calculated to be %d", n, cpu.registers[.V0])
+	fmt.printfln("The %dth fibonacci number was calculated to be %d", n, chip9.cpu.registers[.V0])
 }
-
-read_line :: proc(file := stdin, allocator := context.allocator) -> (line: string, err: io.Error) {
-	builder := strings.builder_make(allocator=allocator)
-	defer if err != nil do strings.builder_destroy(&builder)
-
-	for {
-		c: u8
-		n := io.read(file, (transmute(^[1]u8)&c)[:]) or_return
-
-		if n == 0 do break
-		if c == '\n' do break
-		strings.write_byte(&builder, c)
-	}
-
-	return strings.to_string(builder), nil
-}
-
-stdin: io.Reader
-init_stdin :: proc() { stdin = os.to_reader(os.stdin) }

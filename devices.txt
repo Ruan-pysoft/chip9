@@ -1,0 +1,41 @@
+The chip9 has a few devices which the CPU can send instructions to via the 0XXX family of instructions.
+The device gets read/write access to the 16-bit register specified by the second nibble of the instruction,
+and a command nibble specified by the third nibble of the instruction to select which action to take.
+
+Graphics chip: TODO
+  Preliminary screen resolution: 768x512
+
+Sound chip: TODO
+
+Input chip: TODO
+
+Clock chip:
+  The Chip9 runs at a clock speed of 3 MHz,
+  split into 60 frames a second with 50,000 clock cycles per frame.
+
+  During the last 512 frames of each cycle
+  the graphics chip will draw do the screen, one row at a time.
+  The cpu will not tick during this time.
+  Implementations could write the whole screen at once
+  and then sleep until the 512 cycles expired.
+
+  The clock keeps track of:
+   - cycle: the current cycle in the frame
+   - frame: the current frame in the second
+   - second: the number of seconds since boot
+   - epoch: the amount of times the no. of seconds since boot has overflowed to zero
+   - timer: a counter that ticks down every cycle until it hits zero
+   - frame timer: a counter that ticks down every frame until it hits zero
+
+  Commands (specified by the command nibble):
+    0 :: read cycle into Vr
+    1 :: read frame into Vr
+    2 :: read second into Vr
+    3 :: read epoch into Vr
+
+    8 :: read timer into Vr
+    9 :: set timer to Vr
+    A :: read frame timer into Vr
+    B :: set frame timer to Vr
+    C :: suspend cpu for Vr cycles (including graphics-drawing cycles)
+    D :: suspend cpu until the end of the current frame (cpu only ticks again at the first cycle of the next frame)

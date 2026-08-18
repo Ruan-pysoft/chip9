@@ -25,6 +25,11 @@ Cpu :: struct {
 	memory:    [1<<16]   u16,
 	registers: [Register]u16,
 	pc:        u16,
+
+	graphics_chip: Device,
+	sound_chip: Device,
+	input_chip: Device,
+	clock_chip: Device,
 }
 
 init_cpu :: proc(cpu: ^Cpu) {
@@ -38,7 +43,7 @@ make_cpu :: proc() -> Cpu {
 	return res
 }
 
-load_rom :: proc(cpu: ^Cpu, rom: []u16) -> (ok: bool) {
+cpu_load_rom :: proc(cpu: ^Cpu, rom: []u16) -> (ok: bool) {
 	if len(rom) > len(cpu.memory) do return false
 
 	cpu.memory = {}
@@ -92,10 +97,30 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 				when ODIN_DEBUG do fmt.eprintfln("$%04X>", cpu.pc)
 			case: invalid(instr, old_pc)
 		}
-		case 0x1: panic("TODO: graphics chip")
-		case 0x2: panic("TODO: sound chip")
-		case 0x3: panic("TODO: input chip")
-		case 0x4: panic("TODO: clock chip")
+		case 0x1:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} ($%04X), $%02X to graphics chip>", r, Vr^, XX>>4)
+			if cpu.graphics_chip.device_proc == nil {
+				panic("no graphics chip")
+			}
+			cpu.graphics_chip.device_proc(cpu.graphics_chip.data, Vr, u8(XX>>4))
+		case 0x2:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} ($%04X), $%02X to sound chip>", r, Vr^, XX>>4)
+			if cpu.sound_chip.device_proc == nil {
+				panic("no sound chip")
+			}
+			cpu.sound_chip.device_proc(cpu.sound_chip.data, Vr, u8(XX>>4))
+		case 0x3:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} ($%04X), $%02X to input chip>", r, Vr^, XX>>4)
+			if cpu.input_chip.device_proc == nil {
+				panic("no input chip")
+			}
+			cpu.input_chip.device_proc(cpu.input_chip.data, Vr, u8(XX>>4))
+		case 0x4:
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} ($%04X), $%02X to clock chip>", r, Vr^, XX>>4)
+			if cpu.clock_chip.device_proc == nil {
+				panic("no clock chip")
+			}
+			cpu.clock_chip.device_proc(cpu.clock_chip.data, Vr, u8(XX>>4))
 		case: invalid(instr, old_pc)
 	}
 	case 0x1:
