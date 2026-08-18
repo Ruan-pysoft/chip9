@@ -7,7 +7,8 @@ import "core:strconv"
 main :: proc() {
 	init_stdin()
 
-	chip9 := make_chip9()
+	chip9: Chip9
+	init_chip9(&chip9)
 
 	n: u8
 	for {
@@ -44,7 +45,7 @@ main :: proc() {
 
 		// while V0 > 0
 		0x102 = 0xB00C, // SKIP IF V0 > 0
-		0x103 = 0x4005, // JMP PC+5
+		0x103 = 0x400B, // JMP PC+11
 
 		// --V0
 		0x104 = 0x7FFF, // V0 = V0 - 1
@@ -53,12 +54,19 @@ main :: proc() {
 		0x105 = 0x6210, // V2 = V2 + V1
 		0x106 = 0x6122, // V1 = V2 - V1
 
+		0x107 = 0x00D4, // suspend until the end of the frame
+		0x108 = 0x00D4, // suspend until the end of the frame
+		0x109 = 0x00D4, // suspend until the end of the frame
+		0x10A = 0x00D4, // suspend until the end of the frame
+		0x10B = 0x00D4, // suspend until the end of the frame
+		0x10C = 0x00D4, // suspend until the end of the frame
+
 		// endwhile
-		0x107 = 0x40FB, // JMP PC-5
+		0x10D = 0x40F5, // JMP PC-11
 
 		// return V1
-		0x108 = 0x2010, // V0 = V1
-		0x109 = 0x0010, // RET
+		0x10E = 0x2010, // V0 = V1
+		0x10F = 0x0010, // RET
 	}
 
 	{
@@ -122,8 +130,6 @@ main :: proc() {
 		when ODIN_DEBUG do fmt.printfln("  Registers: {}", transmute([16]u16) chip9.cpu.registers)
 		i += 1
 		fmt.printfln("pc=%04X [pc]=%04X", chip9.cpu.pc, chip9.cpu.memory[chip9.cpu.pc])
-
-		if i == 100 do break
 	}
 
 	fmt.println("CPU HALTED")

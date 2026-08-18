@@ -9,12 +9,7 @@ Chip9 :: struct {
 init_chip9 :: proc(chip9: ^Chip9) {
 	chip9^ = {}
 	init_cpu(&chip9.cpu)
-}
-
-make_chip9 :: proc() -> Chip9 {
-	res := Chip9 {}
-	init_chip9(&res)
-	return res
+	chip9.cpu.clock_chip = clock_as_device(&chip9.clock)
 }
 
 load_rom :: proc(chip9: ^Chip9, rom: []u16) -> (ok: bool) {
