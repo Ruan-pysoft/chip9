@@ -151,10 +151,10 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = [{}] ([$%04X]=$%04X)>", r, y, Vy^, cpu.memory[Vy^])
 			Vr^ = cpu.memory[Vy^]
 		case 0x2:
-			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = [.V0 + {}] ([$%04X + $%04X]=$%04X)>", r, y, V0^, Vy^, cpu.memory[Vy^])
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = [.V0 + {}] ([$%04X + $%04X]=$%04X)>", r, y, V0^, Vy^, cpu.memory[V0^ + Vy^])
 			Vr^ = cpu.memory[V0^ + Vy^]
 		case 0x3:
-			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = [PC + {}] ([$%04X + $%04X]=$%04X)>", r, y, old_pc, Vy^, cpu.memory[Vy^])
+			when ODIN_DEBUG do fmt.eprintfln("<INSTR {} = [PC + {}] ([$%04X + $%04X]=$%04X)>", r, y, old_pc, Vy^, cpu.memory[old_pc + Vy^])
 			Vr^ = cpu.memory[old_pc + Vy^]
 		case: invalid(instr, old_pc)
 	}

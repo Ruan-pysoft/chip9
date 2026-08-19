@@ -148,7 +148,7 @@ main :: proc() {
 				if !prev_skipped do fmt.println("      ***************************************  ***************************************")
 				prev_skipped = true
 				continue
-			}
+			} else do prev_skipped = false
 
 			fmt.printf("%03X. ", row)
 			for col in 0..<16 {
