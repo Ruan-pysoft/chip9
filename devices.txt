@@ -5,6 +5,56 @@ and a command nibble specified by the third nibble of the instruction to select 
 Graphics chip:
   Preliminary screen resolution: 768x512
 
+  The graphics chip has a screen with a logical resolution of 384x256
+  The native colour format is 16-bit rgba,
+  with the red, green, and blue channels each using five consecutive bits in that order
+  and alpha using a single bit (transparent/opaque), the least significant bit.
+
+  Graphics modes:
+    Pixel mode: memory use is [$8000,$9800)
+      read 96x64 (=6144) pixels of data from memory address $8000, and display them in 4x4 pixel groups
+    Sprite mode: [$8000,$A0C0]
+      Read 32 sprites from memory address $8000,
+      where each 16x16 sprite consists of 256 consecutive words indicating its colour.
+      The first 16 sprites are the foreground sprites and the last 16 are the background sprites.
+
+      Read the foreground index set (24x16=384 nibbles) from address $A000
+      and the background index set (24x16=384 nibbles) from address $A060.
+
+      The background sprites are drawn first, then the foreground sprites over them
+      (with transparent foreground pixels not drawn)
+    Indexed pixel mode: memory use is [$8000,$9810)
+      read 192x128 packed nibbles of colour indices from memory address $8000 (6144 bytes).
+
+      read 16 colour values from memory address $9800 as the index table.
+
+      The screen is painted with these pixels.
+    Indexed sprite mode: [$8000,$A930)
+      The 4096 bytes at memory address $8000 contain 4 sprite sets,
+      where each sprite set consists of 16 consecutive sprites,
+      and each sprite consists of 256 packed nibbles, each a colour index. (1024 bytes per sprite set)
+      These are the sprite sets, respectively, for layers 1, 2, 3, and 4.
+
+      A screen consists of 1536 consecutive sprite indexes, each consisting of a single nibble. (384 bytes)
+      The first 24x16=384 nibbles belongs to layer 1, the next 24x16=384 to layer 2, then layer 3, then layer 4.
+      The 6144 bytes at memory address $9000 contains screen 1 through screen 4.
+
+      Starting at memory address $A800 then read 256 bytes,
+      where each 16 bytes is a colour index table.
+      First the 4 index tables for layer 1 through layer 4 of screen 1,
+      then the 4 index tables for layer 1 through layer 4 of screen 2,
+      then screen 3 then screen 4.
+
+      Starting at memory address $A900 then read 48 bytes,
+      consisting of 24x16=384 bit-pairs,
+      each bit pair a screen index.
+
+      Then, at each 16x16 sprite position on the display:
+       - the active screen is slected by the current screen index
+       - the sprites of layers 1 through 4 of the current screen is drawn
+         - layer 4 far back, layer 1 most front
+         - only layer 4 has its transparent pixels drawn
+
 Sound chip: TODO
 
 Input chip: TODO
