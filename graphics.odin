@@ -1,7 +1,10 @@
 package chip9
 
 import "core:fmt"
+import "core:mem"
 import "core:thread"
+import "core:sync"
+import "core:sync/chan"
 
 import "vendor:sdl3"
 
@@ -45,19 +48,28 @@ get_index :: proc { get_index_single, get_index_multi }
 
 Sprite_Index_Screen :: [SCREEN_HEIGHT/16][SCREEN_WIDTH/16/4]Packed_Indices
 
-Graphics_Mode :: enum {
-	Pixel = 0,
-	Sprite = 1,
-	IndexedPixel = 2,
-	IndexedSprite = 3,
+@(private="file")
+Render_Command :: enum {
+	Draw,
+	Quit,
+	HideWindow,
 }
-Graphics_Chip :: struct {
+@(private="file")
+Render_Frame :: struct {
+	cmd: Render_Command,
+	mode: Graphics_Mode,
+}
+@(private="file")
+Render_Thread :: struct {
 	window: ^sdl3.Window,
+	surface: ^sdl3.Surface,
+
+	thread: ^thread.Thread,
+	memory_lock: sync.Mutex,
 
 	screen_on: bool,
 	mode: Graphics_Mode,
 
-	screen_draw_thread: ^thread.Thread,
 	screen_colours: [SCREEN_HEIGHT][SCREEN_WIDTH]Color,
 
 	pixels: [SCREEN_HEIGHT/4][SCREEN_WIDTH/4]Color,
@@ -67,6 +79,21 @@ Graphics_Chip :: struct {
 	sprites_bg: Sprite_Index_Screen,
 	sprites_fg: Sprite_Index_Screen,
 }
+@(private="file")
+render_thread: Render_Thread
+
+Graphics_Mode :: enum {
+	Pixel = 0,
+	Sprite = 1,
+	IndexedPixel = 2,
+	IndexedSprite = 3,
+}
+Graphics_Chip :: struct {
+	render_chan: chan.Chan(Render_Frame),
+
+	screen_on: bool,
+	mode: Graphics_Mode,
+}
 
 @(private="file")
 _pixels_to_raw_words :: proc($num_words: int, pixels: ^[$H][$W]Color) -> (raw: ^[num_words]u16) {
@@ -75,9 +102,9 @@ _pixels_to_raw_words :: proc($num_words: int, pixels: ^[$H][$W]Color) -> (raw: ^
 }
 
 @(private="file")
-_draw_pixel :: proc(graphics: ^Graphics_Chip, x: int, y: int, color: Color) #no_bounds_check {
-	if graphics.screen_colours[y][x] == color do return
-	graphics.screen_colours[y][x] = color
+_draw_pixel :: proc(ctx: ^Render_Thread, x: int, y: int, color: Color) #no_bounds_check {
+	if ctx.screen_colours[y][x] == color do return
+	ctx.screen_colours[y][x] = color
 
 	full_color := [3]int {
 		int(color.r), int(color.g), int(color.b),
@@ -91,13 +118,52 @@ _draw_pixel :: proc(graphics: ^Graphics_Chip, x: int, y: int, color: Color) #no_
 			abs_pos := abs_y*SCREEN_WIDTH*2 + abs_x
 
 			sdl3.WriteSurfacePixel(
-				sdl3.GetWindowSurface(graphics.window),
+				ctx.surface,
 				i32(abs_x), i32(abs_y),
 				sdl3.Uint8(full_color.r),
 				sdl3.Uint8(full_color.g),
 				sdl3.Uint8(full_color.b),
 				sdl3.Uint8(full_alpha),
 			)
+		}
+	}
+}
+
+@(private="file")
+render_thread_proc :: proc(c: chan.Chan(Render_Frame, .Recv)) {
+	{
+		sync.lock(&render_thread.memory_lock)
+		defer sync.unlock(&render_thread.memory_lock)
+
+		render_thread.window = sdl3.CreateWindow("CHIP9", SCREEN_WIDTH*2, SCREEN_HEIGHT*2, { .TRANSPARENT, .HIDDEN })
+		assert(render_thread.window != nil)
+		render_thread.surface = sdl3.GetWindowSurface(render_thread.window)
+		assert(render_thread.surface != nil)
+	}
+
+	defer {
+		sync.lock(&render_thread.memory_lock)
+		defer sync.unlock(&render_thread.memory_lock)
+
+		sdl3.DestroyWindow(render_thread.window)
+	}
+
+	render_loop: for {
+		frame, ok := chan.recv(c)
+		if !ok do break
+
+		switch frame.cmd {
+		case .Draw:
+			defer sdl3.ShowWindow(render_thread.window)
+
+			sync.lock(&render_thread.memory_lock)
+			defer sync.unlock(&render_thread.memory_lock)
+
+			if frame.mode != .Pixel do fmt.panicf("Graphics mode {} is not implemented yet!", frame.mode)
+
+			graphics_draw_pixels(&render_thread)
+		case .Quit: break render_loop
+		case .HideWindow: sdl3.HideWindow(render_thread.window)
 		}
 	}
 }
@@ -129,41 +195,36 @@ graphics_as_device :: proc(graphics: ^Graphics_Chip) -> Device {
 
 graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 	if !graphics.screen_on {
-		sdl3.HideWindow(graphics.window)
+		chan.send(graphics.render_chan, Render_Frame { cmd = .HideWindow })
 		return
 	}
-	defer sdl3.ShowWindow(graphics.window)
 
 	if graphics.mode != .Pixel do fmt.panicf("Graphics mode {} is not implemented yet!", graphics.mode)
 
-	if graphics.screen_draw_thread != nil {
-		//before := time.tick_now()
-		thread.join(graphics.screen_draw_thread)
-		//dur := time.tick_diff(before, time.tick_now())
-		//fmt.println(time.duration_milliseconds(dur))
-	}
+	sync.lock(&render_thread.memory_lock)
+	defer sync.unlock(&render_thread.memory_lock)
+
 	copy_slice(
-		_pixels_to_raw_words(6144, &graphics.pixels)[:],
+		_pixels_to_raw_words(6144, &render_thread.pixels)[:],
 		chip9.cpu.memory[0x8000:0x9800]
 	)
-	//graphics.screen_draw_thread = thread.create_and_start_with_poly_data(graphics, graphics_draw_pixels)
-	graphics_draw_pixels(graphics)
+	chan.send(graphics.render_chan, Render_Frame { .Draw, .Pixel })
 }
 
-graphics_draw_pixels :: proc(graphics: ^Graphics_Chip) {
-	for pixel_row, y in graphics.pixels {
+graphics_draw_pixels :: proc(ctx: ^Render_Thread) {
+	for pixel_row, y in ctx.pixels {
 		for pixel, x in pixel_row {
 			#unroll for sub_y in 0..<4 {
 				abs_y := y*4 + sub_y
 				#unroll for sub_x in 0..<4 {
 					abs_x := x*4 + sub_x
-					_draw_pixel(graphics, abs_x, abs_y, pixel)
+					_draw_pixel(ctx, abs_x, abs_y, pixel)
 				}
 			}
 		}
 	}
 
-	sdl3.UpdateWindowSurface(graphics.window)
+	sdl3.UpdateWindowSurface(ctx.window)
 }
 
 @(init)
@@ -177,14 +238,26 @@ fini_sdl :: proc "contextless" () {
 }
 
 init_graphics :: proc(graphics: ^Graphics_Chip) {
+	assert(render_thread == {})
+
 	graphics^ = {}
 
-	graphics.window = sdl3.CreateWindow("CHIP9", 768, 512, { .TRANSPARENT, .HIDDEN })
-	assert(graphics.window != nil)
+	err: mem.Allocator_Error
+	graphics.render_chan, err = chan.create(chan.Chan(Render_Frame), context.allocator)
+	assert(err == nil)
+
+	render_thread.thread = thread.create_and_start_with_poly_data(
+		chan.as_recv(graphics.render_chan),
+		render_thread_proc,
+	)
+
 	graphics.screen_on = true
 }
 
 destroy_graphics :: proc(graphics: ^Graphics_Chip) {
-	if graphics.screen_draw_thread != nil do thread.terminate(graphics.screen_draw_thread, 0)
-	sdl3.DestroyWindow(graphics.window)
+	chan.send(graphics.render_chan, Render_Frame { cmd = .Quit })
+	thread.join(render_thread.thread)
+
+	chan.destroy(graphics.render_chan)
+	thread.destroy(render_thread.thread)
 }
