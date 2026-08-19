@@ -90,9 +90,9 @@ clock_tick :: proc(clock: ^Clock, chip9: ^Chip9) -> (executed_instr: bool, not_h
 		frame_end_tick := time.tick_add(clock.frame_start_tick, FRAME_DURATION)
 		now := time.tick_now()
 		if now._nsec < frame_end_tick._nsec {
-			fmt.print(".")
 			time.sleep(time.tick_diff(now, frame_end_tick))
-		}
+			clock.frame_start_tick = frame_end_tick
+		} else do clock.frame_start_tick = now
 	}
 
 	return executed_instr, true
