@@ -22,6 +22,8 @@ Clock :: struct {
 
 	suspend_cycles: u16,
 	end_frame: bool,
+
+	frame_start_tick: time.Tick,
 }
 
 clock_device_proc :: proc(ptr: rawptr, register: ^u16, command_nibble: u8) {
@@ -56,6 +58,8 @@ clock_as_device :: proc(clock: ^Clock) -> Device {
 	}
 }
 clock_tick :: proc(clock: ^Clock, chip9: ^Chip9) -> (executed_instr: bool, not_halted: bool) {
+	if clock.frame_start_tick == {} do clock.frame_start_tick = time.tick_now()
+
 	cpu_should_run := clock.cycle < COMPUTE_CYCLES
 
 	suspended := clock.suspend_cycles != 0 || clock.end_frame
@@ -83,7 +87,12 @@ clock_tick :: proc(clock: ^Clock, chip9: ^Chip9) -> (executed_instr: bool, not_h
 			if clock.second == 0 do clock.epoch += 1
 		}
 
-		time.sleep(FRAME_DURATION)
+		frame_end_tick := time.tick_add(clock.frame_start_tick, FRAME_DURATION)
+		now := time.tick_now()
+		if now._nsec < frame_end_tick._nsec {
+			fmt.print(".")
+			time.sleep(time.tick_diff(now, frame_end_tick))
+		}
 	}
 
 	return executed_instr, true
