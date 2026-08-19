@@ -5,15 +5,18 @@ and a command nibble specified by the third nibble of the instruction to select 
 Graphics chip:
   Preliminary screen resolution: 768x512
 
+  The graphics chip starts in mode 0.
+  The screen starts switched on.
+
   The graphics chip has a screen with a logical resolution of 384x256
   The native colour format is 16-bit rgba,
   with the red, green, and blue channels each using five consecutive bits in that order
   and alpha using a single bit (transparent/opaque), the least significant bit.
 
   Graphics modes:
-    Pixel mode: memory use is [$8000,$9800)
+    Pixel mode (mode 0): memory use is [$8000,$9800)
       read 96x64 (=6144) pixels of data from memory address $8000, and display them in 4x4 pixel groups
-    Sprite mode: [$8000,$A0C0]
+    Sprite mode (mode 1): [$8000,$A0C0]
       Read 32 sprites from memory address $8000,
       where each 16x16 sprite consists of 256 consecutive words indicating its colour.
       The first 16 sprites are the foreground sprites and the last 16 are the background sprites.
@@ -23,13 +26,13 @@ Graphics chip:
 
       The background sprites are drawn first, then the foreground sprites over them
       (with transparent foreground pixels not drawn)
-    Indexed pixel mode: memory use is [$8000,$9810)
+    Indexed pixel mode (mode 2): memory use is [$8000,$9810)
       read 192x128 packed nibbles of colour indices from memory address $8000 (6144 bytes).
 
       read 16 colour values from memory address $9800 as the index table.
 
       The screen is painted with these pixels.
-    Indexed sprite mode: [$8000,$A930)
+    Indexed sprite mode (mode 3): [$8000,$A930)
       The 4096 bytes at memory address $8000 contain 4 sprite sets,
       where each sprite set consists of 16 consecutive sprites,
       and each sprite consists of 256 packed nibbles, each a colour index. (1024 bytes per sprite set)
@@ -54,6 +57,12 @@ Graphics chip:
        - the sprites of layers 1 through 4 of the current screen is drawn
          - layer 4 far back, layer 1 most front
          - only layer 4 has its transparent pixels drawn
+
+  Commands (specified by the command nibble):
+    0 :: read current graphics mode into Vr
+    1 :: set graphics mode from Vr; behaviour on invalid graphics mode is undefined
+    2 :: read screen state into Vr (on=all bits set, off=no bit set)
+    3 :: set screen state from Vr (on=any bit set, off=no bit set)
 
 Sound chip: TODO
 
