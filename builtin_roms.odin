@@ -255,15 +255,15 @@ rainbow_rom :: [1<<16]u16 {
 	// if V0 == 96
 	0x314 = 0x1F60, // VF = $60
 	0x315 = 0xB0F0, // SKIP IF V0 == VF
-	0x316 = 0x4004, // JMP PC+4
+	0x316 = 0x4005, // JMP PC+5
 
 	0x317 = 0x1001, // V0 = 1
 	0x318 = 0x6100, // V1 = V1 + V0
 	0x319 = 0x1000, // V0 = 0
 
-	// endif = 0x31A
-
 	0x31A = 0x00D4, // sleep till frame end
+
+	// endif = 0x31B
 
 	// endwhile
 	0x31B = 0x40E6, // JMP PC-25

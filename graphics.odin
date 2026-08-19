@@ -58,7 +58,7 @@ Graphics_Chip :: struct {
 	mode: Graphics_Mode,
 
 	screen_draw_thread: ^thread.Thread,
-	screen_colours: [SCREEN_WIDTH][SCREEN_HEIGHT]Color,
+	screen_colours: [SCREEN_HEIGHT][SCREEN_WIDTH]Color,
 
 	pixels: [SCREEN_HEIGHT/4][SCREEN_WIDTH/4]Color,
 
@@ -146,7 +146,8 @@ graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 		_pixels_to_raw_words(6144, &graphics.pixels)[:],
 		chip9.cpu.memory[0x8000:0x9800]
 	)
-	graphics.screen_draw_thread = thread.create_and_start_with_poly_data(graphics, graphics_draw_pixels)
+	//graphics.screen_draw_thread = thread.create_and_start_with_poly_data(graphics, graphics_draw_pixels)
+	graphics_draw_pixels(graphics)
 }
 
 graphics_draw_pixels :: proc(graphics: ^Graphics_Chip) {
