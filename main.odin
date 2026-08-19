@@ -76,20 +76,25 @@ main :: proc() {
 	fmt.println("ROM LOADED")
 	fmt.printfln("  V0=%04X", chip9.cpu.registers[.V0])
 
-	i := 0
+	when ODIN_DEBUG do i := 0
 	fmt.printfln("pc=%04X [pc]=%04X", chip9.cpu.pc, chip9.cpu.memory[chip9.cpu.pc])
-	for executed in clock_tick(&chip9.clock, &chip9) {
+	exec_loop: for executed in clock_tick(&chip9.clock, &chip9) {
 		if !executed do continue
 
-		fmt.printfln("  i=%03d V0=%04X", i, chip9.cpu.registers[.V0])
-		when ODIN_DEBUG do fmt.printfln("  Registers: {}", transmute([16]u16) chip9.cpu.registers)
-		i += 1
-		fmt.printfln("pc=%04X [pc]=%04X", chip9.cpu.pc, chip9.cpu.memory[chip9.cpu.pc])
+		event: sdl3.Event
+		for sdl3.PollEvent(&event) {
+			if event.type == .QUIT do break exec_loop
+		}
+
+		//fmt.printfln("  i=%03d V0=%04X", i, chip9.cpu.registers[.V0])
+		when ODIN_DEBUG do fmt.eprintfln("  Registers: {}", transmute([16]u16) chip9.cpu.registers)
+		when ODIN_DEBUG do i += 1
+		//fmt.printfln("pc=%04X [pc]=%04X", chip9.cpu.pc, chip9.cpu.memory[chip9.cpu.pc])
 	}
 
 	fmt.println("CPU HALTED")
 
-	fmt.printfln("  i=%03d V0=%04X=%d", i, chip9.cpu.registers[.V0], chip9.cpu.registers[.V0])
+	when ODIN_DEBUG do fmt.eprintfln("  i=%03d V0=%04X=%d", i, chip9.cpu.registers[.V0], chip9.cpu.registers[.V0])
 
 	if rom.setup == fib_rom_setup_proc {
 		fmt.println()
