@@ -37,9 +37,11 @@ main :: proc() {
 	}
 
 	program := [?]u16 {
-		0x000 = 0x1000 | u16(n), // V0 = %n
-		0x001 = 0x8100, // CALL $100 (fib)
-		0x002 = 0x0000, // HALT
+		0x000 = 0x1201, // V2 = $01
+		0x001 = 0x8200, // CALL $200 (draw_pixel)
+		0x002 = 0x1000 | u16(n), // V0 = %n
+		0x003 = 0x8100, // CALL $100 (fib)
+		0x004 = 0x0000, // HALT
 
 		// proc fib(V0)
 		// uses: V1, V2, VF
@@ -71,6 +73,35 @@ main :: proc() {
 		0x10E = 0x2010, // V0 = V1
 		0x10F = 0x0010, // RET
 
+		// proc draw_pixel(x=V0, y=V1, color=V2)
+
+		0x200 = 0x0020, // PUSH V0
+		0x201 = 0x0120, // PUSH V1
+		0x202 = 0x0220, // PUSH V2
+
+		// V0 = x + y*96
+		0x203 = 0x1260, // V2 = $60
+		0x204 = 0x6123, // V1 = V1 * V2
+		0x205 = 0x6010, // V0 = V0 + V1
+
+		// V1 = $8000
+		0x206 = 0x1109, // V1 = $9
+		0x207 = 0x2113, // V1 = [0x210]
+
+		// screen[pos] = color
+		0x208 = 0x0230, // POP V2
+		0x209 = 0x3122, // [V0 + V1] = V2
+
+		// restore V0 & V1
+		0x20A = 0x0130, // POP V1
+		0x20B = 0x0030, // POP V0
+
+		0x20C = 0x0010, // RET
+
+		0x210 = 0x8000, // video memory offset
+
+		// return
+		0x20F = 0x0010,
 
 		0x8000 = 0xFFFF,
 		0x8060 = 0xFFFF,

@@ -32,7 +32,6 @@ graphics_as_device :: proc(graphics: ^Graphics_Chip) -> Device {
 graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 	GRAPHICS_OFFSET := 0x8000
 
-	printed_color := false
 	for sprite_y in 0..<(512/8) {
 		for sprite_x in 0..<(768/8) {
 			pos := sprite_y*(768/8) + sprite_x
@@ -47,11 +46,6 @@ graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 				f32(color.r)/31,
 				f32(color.g)/31,
 				f32(color.b)/31,
-			}
-
-			if !printed_color && color.a != 0 {
-				fmt.printfln("Pixel %d,%d,%d at x/y %d/%d and absolute x/y %d/%d", color.r, color.g, color.b, sprite_x, sprite_y, sprite_x*8, sprite_y*8)
-				printed_color = true
 			}
 
 			for pixel_y in 0..<8 {

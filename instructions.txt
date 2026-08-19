@@ -10,6 +10,8 @@ The stack increases downwards
 0XXX SPECIAL
      0.00 :: HLT
      0.10 :: RET
+     0r20 :: PUSH
+     0r30 :: POP
 
      0rX1 :: graphics chip command X with register r
      0rX2 :: sound chip command X with register r

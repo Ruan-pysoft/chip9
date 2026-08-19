@@ -95,6 +95,23 @@ cycle :: proc(cpu: ^Cpu) -> (ok: bool) {
 				}
 				cpu.pc = cpu.memory[VE^]
 				when ODIN_DEBUG do fmt.eprintfln("$%04X>", cpu.pc)
+			case 0x2:
+				when ODIN_DEBUG do fmt.eprintf("<INSTR PUSH {} ($%04X)", r, Vr^)
+				if VE^ == 0 {
+					when ODIN_DEBUG do fmt.eprintln(";stack overflowed!>")
+					return false // halt
+				}
+				when ODIN_DEBUG do fmt.eprintln(">")
+				cpu.memory[VE^] = Vr^
+				VE^ -= 1
+			case 0x3:
+				when ODIN_DEBUG do fmt.eprintf("<INSTR POP {}:", r)
+				VE^ += 1
+				if VE^ == 0 {
+					when ODIN_DEBUG do fmt.eprintfln("stack underflowed!>")
+				}
+				Vr^ = cpu.memory[VE^]
+				when ODIN_DEBUG do fmt.eprintfln("$%04X>", Vr^)
 			case: invalid(instr, old_pc)
 		}
 		case 0x1:
