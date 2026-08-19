@@ -32,19 +32,26 @@ graphics_as_device :: proc(graphics: ^Graphics_Chip) -> Device {
 graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 	GRAPHICS_OFFSET := 0x8000
 
-	for sprite_y in 0..<(768/8) {
-		for sprite_x in 0..<(512/8) {
-			pos := sprite_y*(512/8) + sprite_x
+	printed_color := false
+	for sprite_y in 0..<(512/8) {
+		for sprite_x in 0..<(768/8) {
+			pos := sprite_y*(768/8) + sprite_x
 			color_raw := chip9.cpu.memory[GRAPHICS_OFFSET + pos]
-			color := [3]u8 {
+			color := [4]u8 {
 				u8((color_raw&0b1111_1000_0000_0000)>>11),
 				u8((color_raw&0b0000_0111_1100_0000)>>6 ),
-				u8( color_raw&0b0000_0000_0011_1111     ),
+				u8((color_raw&0b0000_0000_0011_1110)>>1 ),
+				u8( color_raw&0b0000_0000_0000_0001     ),
 			}
 			color_float := [3]f32 {
 				f32(color.r)/31,
 				f32(color.g)/31,
-				f32(color.b)/63,
+				f32(color.b)/31,
+			}
+
+			if !printed_color && color.a != 0 {
+				fmt.printfln("Pixel %d,%d,%d at x/y %d/%d and absolute x/y %d/%d", color.r, color.g, color.b, sprite_x, sprite_y, sprite_x*8, sprite_y*8)
+				printed_color = true
 			}
 
 			for pixel_y in 0..<8 {
@@ -55,11 +62,12 @@ graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 					r := sdl3.Uint8(color_float.r * 255)
 					g := sdl3.Uint8(color_float.g * 255)
 					b := sdl3.Uint8(color_float.b * 255)
+					a := sdl3.Uint8(color      .a * 255) // cursed spacing, lol
 
 					sdl3.WriteSurfacePixel(
 						sdl3.GetWindowSurface(graphics.window),
-						i32(abs_y), i32(abs_x),
-						r, g, b, 255,
+						i32(abs_x), i32(abs_y),
+						r, g, b, a,
 					)
 				}
 			}
