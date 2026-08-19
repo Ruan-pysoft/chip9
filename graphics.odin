@@ -5,9 +5,16 @@ import "core:fmt"
 import "vendor:sdl3"
 
 Graphics_Mode :: enum {
+	Pixel = 0,
+	Sprite = 1,
+	IndexedPixel = 2,
+	IndexedSprite = 3,
 }
 Graphics_Chip :: struct {
-	window: ^sdl3.Window
+	window: ^sdl3.Window,
+
+	screen_on: bool,
+	mode: Graphics_Mode,
 }
 
 graphics_device_proc :: proc(ptr: rawptr, register: ^u16, command_nibble: u8) {
@@ -18,6 +25,12 @@ graphics_device_proc :: proc(ptr: rawptr, register: ^u16, command_nibble: u8) {
 	}
 
 	switch command_nibble {
+	case 0: register^ = u16(graphics.mode)
+	case 1: graphics.mode = Graphics_Mode(register^)
+	case 2:
+		if graphics.screen_on do register^ = ~u16(0)
+		else do register^ = 0
+	case 3: graphics.screen_on = register^ != 0
 	case: invalid(command_nibble)
 	}
 }
@@ -30,6 +43,14 @@ graphics_as_device :: proc(graphics: ^Graphics_Chip) -> Device {
 }
 
 graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
+	if !graphics.screen_on {
+		sdl3.HideWindow(graphics.window)
+		return
+	}
+	defer sdl3.ShowWindow(graphics.window)
+
+	if graphics.mode != .Pixel do fmt.panicf("Graphics mode {} is not implemented yet!", graphics.mode)
+
 	GRAPHICS_OFFSET := 0x8000
 
 	for sprite_y in 0..<(512/8) {
@@ -84,13 +105,9 @@ fini_sdl :: proc "contextless" () {
 init_graphics :: proc(graphics: ^Graphics_Chip) {
 	graphics^ = {}
 
-	graphics.window = sdl3.CreateWindow("CHIP9", 768, 512, { .TRANSPARENT })
+	graphics.window = sdl3.CreateWindow("CHIP9", 768, 512, { .TRANSPARENT, .HIDDEN })
 	assert(graphics.window != nil)
-	fmt.eprintln(graphics.window)
-	fmt.eprintln(sdl3.ShowWindow(graphics.window))
-
-	sdl3.GetWindowSurface(graphics.window)
-	sdl3.UpdateWindowSurface(graphics.window)
+	graphics.screen_on = true
 }
 
 destroy_graphics :: proc(graphics: ^Graphics_Chip) {
