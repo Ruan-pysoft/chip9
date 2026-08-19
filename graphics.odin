@@ -1,8 +1,11 @@
 package chip9
 
 import "core:fmt"
+import "core:thread"
 
 import "vendor:sdl3"
+
+#assert(thread.IS_SUPPORTED)
 
 Graphics_Mode :: enum {
 	Pixel = 0,
@@ -15,6 +18,10 @@ Graphics_Chip :: struct {
 
 	screen_on: bool,
 	mode: Graphics_Mode,
+
+	screen_draw_thread: ^thread.Thread,
+	pixels_memory: [6144]u16,
+	old_pixels_memory: [6144]u16,
 }
 
 graphics_device_proc :: proc(ptr: rawptr, register: ^u16, command_nibble: u8) {
@@ -51,12 +58,23 @@ graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 
 	if graphics.mode != .Pixel do fmt.panicf("Graphics mode {} is not implemented yet!", graphics.mode)
 
-	GRAPHICS_OFFSET := 0x8000
+	if graphics.screen_draw_thread != nil {
+		//before := time.tick_now()
+		thread.join(graphics.screen_draw_thread)
+		//dur := time.tick_diff(before, time.tick_now())
+		//fmt.println(time.duration_milliseconds(dur))
+	}
+	graphics.old_pixels_memory = graphics.pixels_memory
+	copy_slice(graphics.pixels_memory[:], chip9.cpu.memory[0x8000:0x9800])
+	graphics.screen_draw_thread = thread.create_and_start_with_poly_data(graphics, graphics_draw_pixels)
+}
 
+graphics_draw_pixels :: proc(graphics: ^Graphics_Chip) {
 	for sprite_y in 0..<(512/8) {
 		for sprite_x in 0..<(768/8) {
 			pos := sprite_y*(768/8) + sprite_x
-			color_raw := chip9.cpu.memory[GRAPHICS_OFFSET + pos]
+			color_raw := graphics.pixels_memory[pos]
+			if color_raw == graphics.old_pixels_memory[pos] do continue
 			color := [4]u8 {
 				u8((color_raw&0b1111_1000_0000_0000)>>11),
 				u8((color_raw&0b0000_0111_1100_0000)>>6 ),
@@ -111,5 +129,6 @@ init_graphics :: proc(graphics: ^Graphics_Chip) {
 }
 
 destroy_graphics :: proc(graphics: ^Graphics_Chip) {
+	if graphics.screen_draw_thread != nil do thread.terminate(graphics.screen_draw_thread, 0)
 	sdl3.DestroyWindow(graphics.window)
 }
