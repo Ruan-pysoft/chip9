@@ -7,6 +7,8 @@ import "core:strconv"
 
 import "vendor:sdl3"
 
+chip9: Chip9
+
 main :: proc() {
 	init_stdin()
 
@@ -38,7 +40,6 @@ main :: proc() {
 
 	rom := rom_registry[rom_ix]
 
-	chip9: Chip9
 	init_chip9(&chip9)
 	defer destroy_graphics(&chip9.graphics)
 
