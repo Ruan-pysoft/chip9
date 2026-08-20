@@ -296,8 +296,9 @@ graphics_draw_sprites :: proc(ctx: ^Render_Thread) {
 
 graphics_draw_indexed_pixels :: proc(ctx: ^Render_Thread) {
 	for y in 0..<len(ctx.indexed_pixels) {
-		for x in 0..<4*len(ctx.indexed_pixels) {
-			color_idx := get_index(ctx.indexed_pixels[y], x)
+		row := ctx.indexed_pixels[y]
+		for x in 0..<4*len(row) {
+			color_idx := get_index(row, x)
 			color := ctx.indexed_pixels_colors[color_idx]
 			#unroll for sub_y in 0..<2 {
 				abs_y := y*2 + sub_y
