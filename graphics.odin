@@ -96,7 +96,7 @@ Graphics_Chip :: struct {
 }
 
 @(private="file")
-_pixels_to_raw_words :: proc($num_words: int, pixels: ^[$H][$W]Color) -> (raw: ^[num_words]u16) {
+_to_raw_words :: proc($num_words: int, pixels: ^[$H][$W]$T) -> (raw: ^[num_words]u16) {
 	#assert(size_of(pixels^) == size_of(raw^))
 	return transmute(^[num_words]u16)pixels
 }
@@ -159,9 +159,13 @@ render_thread_proc :: proc(c: chan.Chan(Render_Frame, .Recv)) {
 			sync.lock(&render_thread.memory_lock)
 			defer sync.unlock(&render_thread.memory_lock)
 
-			if frame.mode != .Pixel do fmt.panicf("Graphics mode {} is not implemented yet!", frame.mode)
-
-			graphics_draw_pixels(&render_thread)
+			switch frame.mode {
+			case .Pixel: graphics_draw_pixels(&render_thread)
+			case .Sprite: graphics_draw_sprites(&render_thread)
+			case .IndexedPixel: graphics_draw_indexed_pixels(&render_thread)
+			case .IndexedSprite: graphics_draw_indexed_sprites(&render_thread)
+			case: graphics_draw_pixels(&render_thread)
+			}
 		case .Quit: break render_loop
 		case .HideWindow: sdl3.HideWindow(render_thread.window)
 		}
@@ -199,16 +203,18 @@ graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 		return
 	}
 
-	if graphics.mode != .Pixel do fmt.panicf("Graphics mode {} is not implemented yet!", graphics.mode)
-
 	sync.lock(&render_thread.memory_lock)
 	defer sync.unlock(&render_thread.memory_lock)
 
-	copy_slice(
-		_pixels_to_raw_words(6144, &render_thread.pixels)[:],
-		chip9.cpu.memory[0x8000:0x9800]
-	)
-	chan.send(graphics.render_chan, Render_Frame { .Draw, .Pixel })
+	#partial switch graphics.mode {
+	case .Pixel:
+		copy_slice(
+			_to_raw_words(6144, &render_thread.pixels)[:],
+			chip9.cpu.memory[0x8000:0x9800]
+		)
+	case: fmt.panicf("Graphics mode {} is not implemented yet!", graphics.mode)
+	}
+	chan.send(graphics.render_chan, Render_Frame { .Draw, graphics.mode })
 }
 
 graphics_draw_pixels :: proc(ctx: ^Render_Thread) {
@@ -225,6 +231,18 @@ graphics_draw_pixels :: proc(ctx: ^Render_Thread) {
 	}
 
 	sdl3.UpdateWindowSurface(ctx.window)
+}
+
+graphics_draw_sprites :: proc(ctx: ^Render_Thread) {
+	panic("TODO")
+}
+
+graphics_draw_indexed_pixels :: proc(ctx: ^Render_Thread) {
+	panic("TODO")
+}
+
+graphics_draw_indexed_sprites :: proc(ctx: ^Render_Thread) {
+	panic("TODO")
 }
 
 @(init)
