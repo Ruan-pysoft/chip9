@@ -85,6 +85,9 @@ Render_Thread :: struct {
 	sprites_fg_sprites: Sprite_Set,
 	sprites_bg: Sprite_Index_Screen,
 	sprites_fg: Sprite_Index_Screen,
+
+	indexed_pixels: [SCREEN_HEIGHT/2][SCREEN_WIDTH/2/4]Packed_Indices,
+	indexed_pixels_colors: [16]Color,
 }
 @(private="file")
 render_thread: Render_Thread
@@ -238,6 +241,15 @@ graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 			_to_raw_words(96, &render_thread.sprites_bg)[:],
 			chip9.cpu.memory[0xA060:0xA0C0],
 		)
+	case .IndexedPixel:
+		copy_slice(
+			_to_raw_words(6144, &render_thread.indexed_pixels)[:],
+			chip9.cpu.memory[0x8000:0x9800],
+		)
+		copy_slice(
+			(cast(^[16]u16)&render_thread.indexed_pixels_colors)[:],
+			chip9.cpu.memory[0x9800:0x9810],
+		)
 	case: fmt.panicf("Graphics mode {} is not implemented yet!", graphics.mode)
 	}
 	chan.send(graphics.render_chan, Render_Frame { .Draw, graphics.mode })
@@ -283,7 +295,19 @@ graphics_draw_sprites :: proc(ctx: ^Render_Thread) {
 }
 
 graphics_draw_indexed_pixels :: proc(ctx: ^Render_Thread) {
-	panic("TODO")
+	for y in 0..<len(ctx.indexed_pixels) {
+		for x in 0..<4*len(ctx.indexed_pixels) {
+			color_idx := get_index(ctx.indexed_pixels[y], x)
+			color := ctx.indexed_pixels_colors[color_idx]
+			#unroll for sub_y in 0..<2 {
+				abs_y := y*2 + sub_y
+				#unroll for sub_x in 0..<2 {
+					abs_x := x*2 + sub_x
+					_draw_pixel(ctx, abs_x, abs_y, color)
+				}
+			}
+		}
+	}
 }
 
 graphics_draw_indexed_sprites :: proc(ctx: ^Render_Thread) {
