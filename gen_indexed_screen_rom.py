@@ -58,15 +58,19 @@ main_code = [
     0x1002,
     0x0011,
 
+    # sleep for 5 second
+    0x1005,
+    0x8100,
+
     # start while loop
     0x2000,
+
+    # rotate palette
+    0x8200,
 
     # sleep for 1 second
     0x1001,
     0x8100,
-
-    # rotate palette
-    0x8200,
 
     # loop forever
     0x40FC,

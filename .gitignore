@@ -1,3 +1,4 @@
 chip9
 __pycache__/
 venv/
+*.bin
