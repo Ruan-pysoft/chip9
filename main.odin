@@ -94,6 +94,7 @@ main :: proc() {
 	}
 
 	fmt.println("CPU HALTED")
+	fmt.printfln("  V==$%04X", chip9.cpu.registers[.V0])
 
 	when ODIN_DEBUG do fmt.eprintfln("  i=%03d V0=%04X=%d", i, chip9.cpu.registers[.V0], chip9.cpu.registers[.V0])
 

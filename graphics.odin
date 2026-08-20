@@ -25,10 +25,10 @@ Sprite :: [16][16]Color
 Sprite_Set :: [16]Sprite
 
 Packed_Indices :: bit_field u16 {
-	i0: u8 | 4,
-	i1: u8 | 4,
-	i2: u8 | 4,
 	i3: u8 | 4,
+	i2: u8 | 4,
+	i1: u8 | 4,
+	i0: u8 | 4,
 }
 
 get_index_single :: #force_inline proc(indices: Packed_Indices, i: int) -> u8 {
