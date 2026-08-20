@@ -46,6 +46,13 @@ get_index_multi :: #force_inline proc(indices: [$N]Packed_Indices, i: int) -> u8
 }
 get_index :: proc { get_index_single, get_index_multi }
 
+iter_indices :: proc(indices: [$N]Packed_Indices, i: ^int) -> (index: u8, ok: bool) {
+	if i/4 >= indices do return 0, false
+	index = get_index(indices, i)
+	i += 1
+	return index, true
+}
+
 Sprite_Index_Screen :: [SCREEN_HEIGHT/16][SCREEN_WIDTH/16/4]Packed_Indices
 
 @(private="file")
@@ -166,6 +173,8 @@ render_thread_proc :: proc(c: chan.Chan(Render_Frame, .Recv)) {
 			case .IndexedSprite: graphics_draw_indexed_sprites(&render_thread)
 			case: graphics_draw_pixels(&render_thread)
 			}
+
+			sdl3.UpdateWindowSurface(render_thread.window)
 		case .Quit: break render_loop
 		case .HideWindow: sdl3.HideWindow(render_thread.window)
 		}
@@ -212,6 +221,23 @@ graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 			_to_raw_words(6144, &render_thread.pixels)[:],
 			chip9.cpu.memory[0x8000:0x9800]
 		)
+	case .Sprite:
+		copy_slice(
+			_to_raw_words(4096, &render_thread.sprites_fg_sprites)[:],
+			chip9.cpu.memory[0x8000:0x9000],
+		)
+		copy_slice(
+			_to_raw_words(4096, &render_thread.sprites_bg_sprites)[:],
+			chip9.cpu.memory[0x9000:0xA000],
+		)
+		copy_slice(
+			_to_raw_words(96, &render_thread.sprites_fg)[:],
+			chip9.cpu.memory[0xA000:0xA060],
+		)
+		copy_slice(
+			_to_raw_words(96, &render_thread.sprites_bg)[:],
+			chip9.cpu.memory[0xA060:0xA0C0],
+		)
 	case: fmt.panicf("Graphics mode {} is not implemented yet!", graphics.mode)
 	}
 	chan.send(graphics.render_chan, Render_Frame { .Draw, graphics.mode })
@@ -229,12 +255,31 @@ graphics_draw_pixels :: proc(ctx: ^Render_Thread) {
 			}
 		}
 	}
-
-	sdl3.UpdateWindowSurface(ctx.window)
 }
 
 graphics_draw_sprites :: proc(ctx: ^Render_Thread) {
-	panic("TODO")
+	for y in 0..<len(ctx.sprites_fg) {
+		sprite_fg_row := ctx.sprites_fg[y]
+		sprite_bg_row := ctx.sprites_bg[y]
+		for x in 0..<4*len(sprite_fg_row) {
+			sprite_fg := ctx.sprites_fg_sprites[get_index(sprite_fg_row, x)]
+			sprite_bg := ctx.sprites_bg_sprites[get_index(sprite_bg_row, x)]
+
+			for pixel_y in 0..<16 {
+				abs_y := y*16 + pixel_y
+				for pixel_x in 0..<16 {
+					abs_x := x*16 + pixel_x
+					fg := sprite_fg[pixel_y][pixel_x]
+					bg := sprite_bg[pixel_y][pixel_x]
+					if fg.a {
+						_draw_pixel(ctx, abs_x, abs_y, fg)
+					} else {
+						_draw_pixel(ctx, abs_x, abs_y, bg)
+					}
+				}
+			}
+		}
+	}
 }
 
 graphics_draw_indexed_pixels :: proc(ctx: ^Render_Thread) {
