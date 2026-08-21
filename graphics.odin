@@ -31,6 +31,10 @@ Packed_Indices :: bit_field u16 {
 	i0: u8 | 4,
 }
 
+Indexed_Sprite :: [16][16/4]Packed_Indices
+
+Indexed_Sprite_Set :: [16]Indexed_Sprite
+
 get_index_single :: #force_inline proc(indices: Packed_Indices, i: int) -> u8 {
 	assert(0 <= i && i < 4)
 	switch i {
@@ -88,6 +92,11 @@ Render_Thread :: struct {
 
 	indexed_pixels: [SCREEN_HEIGHT/2][SCREEN_WIDTH/2/4]Packed_Indices,
 	indexed_pixels_colors: [16]Color,
+
+	indexed_sprites_sets: [4]Indexed_Sprite_Set,
+	indexed_sprites_screens: [4][4]Sprite_Index_Screen,
+	indexed_sprites_colors: [4][4][16]Color,
+	indexed_sprites_screen_selectors: [48]u16,
 }
 @(private="file")
 render_thread: Render_Thread
@@ -218,7 +227,7 @@ graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 	sync.lock(&render_thread.memory_lock)
 	defer sync.unlock(&render_thread.memory_lock)
 
-	#partial switch graphics.mode {
+	switch graphics.mode {
 	case .Pixel:
 		copy_slice(
 			_to_raw_words(6144, &render_thread.pixels)[:],
@@ -250,7 +259,23 @@ graphics_draw :: proc(graphics: ^Graphics_Chip, chip9: ^Chip9) {
 			(cast(^[16]u16)&render_thread.indexed_pixels_colors)[:],
 			chip9.cpu.memory[0x9800:0x9810],
 		)
-	case: fmt.panicf("Graphics mode {} is not implemented yet!", graphics.mode)
+	case .IndexedSprite:
+		copy_slice(
+			_to_raw_words(4096, &render_thread.indexed_sprites_sets)[:],
+			chip9.cpu.memory[0x8000:0x9000],
+		)
+		copy_slice(
+			_to_raw_words(1536, &render_thread.indexed_sprites_screens)[:],
+			chip9.cpu.memory[0x9000:0x9600],
+		)
+		copy_slice(
+			_to_raw_words(256, &render_thread.indexed_sprites_colors)[:],
+			chip9.cpu.memory[0x9600:0x9700],
+		)
+		copy_slice(
+			render_thread.indexed_sprites_screen_selectors[:],
+			chip9.cpu.memory[0x9700:0x9730],
+		)
 	}
 	chan.send(graphics.render_chan, Render_Frame { .Draw, graphics.mode })
 }
@@ -312,7 +337,33 @@ graphics_draw_indexed_pixels :: proc(ctx: ^Render_Thread) {
 }
 
 graphics_draw_indexed_sprites :: proc(ctx: ^Render_Thread) {
-	panic("TODO")
+	for y in 0..<SCREEN_HEIGHT/16 {
+		for x in 0..<SCREEN_WIDTH/16 {
+			sprite_pos := y*16 + x
+			screen_idx_group := ctx.indexed_sprites_screen_selectors[sprite_pos/8]
+			bit_pair_selector := uint(sprite_pos%8)
+			bit_pair_shift := 2*(7-bit_pair_selector)
+			screen_idx := (screen_idx_group>>bit_pair_shift)&0b11
+
+			screen := ctx.indexed_sprites_screens[screen_idx]
+
+			for pixel_y in 0..<16 {
+				abs_y := y*16 + pixel_y
+				for pixel_x in 0..<16 {
+					abs_x := x*16 + pixel_x
+					color: Color
+					for layer, layer_idx in screen {
+						sprite_idx := get_index(layer[y], x)
+						sprite := ctx.indexed_sprites_sets[layer_idx][sprite_idx]
+						color_idx := get_index(sprite[pixel_y], pixel_x)
+						color = ctx.indexed_sprites_colors[screen_idx][layer_idx][color_idx]
+						if !color.a do break
+					}
+					_draw_pixel(ctx, abs_x, abs_y, color)
+				}
+			}
+		}
+	}
 }
 
 @(init)
