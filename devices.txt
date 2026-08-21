@@ -27,28 +27,28 @@ Graphics chip:
       The background sprites are drawn first, then the foreground sprites over them
       (with transparent foreground pixels not drawn)
     Indexed pixel mode (mode 2): memory use is [$8000,$9810)
-      read 192x128 packed nibbles of colour indices from memory address $8000 (6144 bytes).
+      read 192x128 packed nibbles of colour indices from memory address $8000 (6144 words).
 
       read 16 colour values from memory address $9800 as the index table.
 
       The screen is painted with these pixels.
-    Indexed sprite mode (mode 3): [$8000,$A930)
-      The 4096 bytes at memory address $8000 contain 4 sprite sets,
+    Indexed sprite mode (mode 3): [$8000,$9730)
+      The 4096 words at memory address $8000 contain 4 sprite sets,
       where each sprite set consists of 16 consecutive sprites,
-      and each sprite consists of 256 packed nibbles, each a colour index. (1024 bytes per sprite set)
+      and each sprite consists of 256 packed nibbles, each a colour index. (1024 words per sprite set)
       These are the sprite sets, respectively, for layers 1, 2, 3, and 4.
 
-      A screen consists of 1536 consecutive sprite indexes, each consisting of a single nibble. (384 bytes)
+      A screen consists of 1536 consecutive sprite indexes, each consisting of a single nibble. (384 words)
       The first 24x16=384 nibbles belongs to layer 1, the next 24x16=384 to layer 2, then layer 3, then layer 4.
-      The 6144 bytes at memory address $9000 contains screen 1 through screen 4.
+      The 1536 words at memory address $9000 contains screen 1 through screen 4.
 
-      Starting at memory address $A800 then read 256 bytes,
-      where each 16 bytes is a colour index table.
+      Starting at memory address $9600 then read 256 words,
+      where each 16 words is a colour index table.
       First the 4 index tables for layer 1 through layer 4 of screen 1,
       then the 4 index tables for layer 1 through layer 4 of screen 2,
       then screen 3 then screen 4.
 
-      Starting at memory address $A900 then read 48 bytes,
+      Starting at memory address $9700 then read 48 words,
       consisting of 24x16=384 bit-pairs,
       each bit pair a screen index.
 
