@@ -10,6 +10,7 @@ rom_registry := [?]struct { name: string, setup: Rom_Setup_Proc, rom: [1<<16]u16
 	{ "Rainbow colours display", nil, rainbow_rom },
 	{ "Sprites test", nil, sprites_test },
 	{ "Indexed pixels test", nil, {} },
+	{ "Indexed sprites test", nil, {} },
 }
 
 @(private="file")
@@ -17,6 +18,8 @@ rom_registry := [?]struct { name: string, setup: Rom_Setup_Proc, rom: [1<<16]u16
 init_rom_registry :: proc "contextless" () {
 	assert_contextless(rom_registry[4].name == "Indexed pixels test")
 	rom_registry[4].rom = indexed_test^
+	assert_contextless(rom_registry[5].name == "Indexed sprites test")
+	rom_registry[5].rom = indexed_sprites_test^
 }
 
 Rom_Setup_Proc :: #type proc(rom: ^[1<<16]u16)
@@ -707,3 +710,5 @@ sprites_test :: [1<<16]u16 {
 }
 indexed_test_raw :: #load("./indexed_screen_rom.bin")
 indexed_test := cast(^[1<<16]u16) raw_data(indexed_test_raw)
+indexed_sprites_test_raw :: #load("./indexed_sprites_rom.bin")
+indexed_sprites_test := cast(^[1<<16]u16) raw_data(indexed_sprites_test_raw)
